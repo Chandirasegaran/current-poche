@@ -91,6 +91,17 @@ public class PlayerController : NetworkBehaviour
         if (Local == this) Local = null;
     }
 
+    // Sent by the server to the player's own machine when a ghost catches them.
+    [Rpc(SendTo.Owner)]
+    public void SpookRpc(Vector3 backTo)
+    {
+        rb.position = backTo;
+        transform.position = backTo;
+        Sfx.Play("fail");
+        if (GameUI.Instance != null)
+            GameUI.Instance.Toast("The ghost got you! You ran all the way back to the gate.\nPoint your torch at it and it freezes.", 5f);
+    }
+
     void Update()
     {
         if (IsSpawned && IsOwner) ReadInput();

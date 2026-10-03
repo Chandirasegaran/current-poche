@@ -7,7 +7,7 @@ using UnityEngine;
 public static class PixelFont
 {
     const int Columns = 16, Rows = 6, FirstChar = 32;
-    public const int LineHeight = 13;
+    public const int LineHeight = 11;
 
     static Color32[] atlas;
     static int atlasWidth, atlasHeight, cellWidth, cellHeight;
@@ -31,7 +31,7 @@ public static class PixelFont
             for (int x = 0; x < cellWidth; x++)
             for (int y = 0; y < cellHeight; y++)
                 if (Source(i, x, y).a > 0) widest = Mathf.Max(widest, x);
-            advance[i] = widest < 0 ? 4 : widest + 2;
+            advance[i] = widest < 0 ? 4 : widest + 1; // each cell already has a blank column on its left
         }
     }
 

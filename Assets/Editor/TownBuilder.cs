@@ -37,6 +37,11 @@ public static class TownBuilder
 
     const int FieldsStart = 66, FieldsEnd = 148;
 
+    // North of town, up the road past the bazaar, is the walled yard of Raja
+    // Talkies (Chapter 3). The gate is in the middle of its south wall.
+    const int NorthEnd = 96;
+    static readonly RectInt Yard = new(-24, 58, 49, 35);
+
     // Inclusive corners, which is easier to read for paths than x/y/width/height.
     static RectInt Area(int x0, int y0, int x1, int y1) => new(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
 
@@ -86,7 +91,7 @@ public static class TownBuilder
         new GameObject("SpawnPoint").transform.position = new Vector3(-9f, 0.5f, 0f);
         var dogSpot = new GameObject("DogSpot").transform;
         dogSpot.position = new Vector3(-5f, 2.8f, 0f);
-        var east = BuildExits();
+        var (east, north) = BuildExits();
         BuildQuestItems();
         var network = BuildNetwork(playerPrefab, minminiPrefab, dogPrefab, bandicootPrefab, BuildMinminiSpots(), dogSpot);
         Set(network.GetComponent<WorldSpawner>(), "bandicootPrefab", bandicootPrefab.GetComponent<NetworkObject>());
@@ -98,6 +103,7 @@ public static class TownBuilder
         quests.AddComponent<NetworkObject>();
         var questState = new SerializedObject(quests.AddComponent<Quests>());
         BuildFields(questState);
+        BuildCinema(questState, north, network.GetComponent<WorldSpawner>());
         Fill(questState.FindProperty("powerOn"), powerLights);
         Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
         questState.ApplyModifiedPropertiesWithoutUndo();
@@ -319,11 +325,20 @@ public static class TownBuilder
         return Island.Contains(cell) ? "grass" : "paddy";
     }
 
-    static bool Blocks(string ground) => ground == "paddy" || ground == "water";
+    static bool Blocks(string ground) => ground == "paddy" || ground == "water" || ground == "wall";
+
+    static string CinemaAt(int x, int y)
+    {
+        if (!Yard.Contains(new Vector2Int(x, y))) return "grass";
+        bool edge = x == Yard.xMin || x == Yard.xMax - 1 || y == Yard.yMin || y == Yard.yMax - 1;
+        bool gate = y == Yard.yMin && x >= Roads[1] && x <= Roads[1] + 3;
+        return edge && !gate ? "wall" : "pitch";
+    }
 
     static string GroundAt(int x, int y)
     {
         if (x >= FieldsStart) return FieldAt(x, y);
+        if (y >= Yard.yMin) return CinemaAt(x, y);
 
         bool inTown = x >= Roads[0] && x <= Roads[2] + 3 && y >= Streets[2] && y <= Streets[0] + 3;
 
@@ -367,7 +382,7 @@ public static class TownBuilder
         wet.gameObject.AddComponent<CompositeCollider2D>();
 
         for (int x = -HalfWidth - 16; x < FieldsEnd + 16; x++)
-        for (int y = -HalfHeight - 10; y < HalfHeight + 10; y++)
+        for (int y = -HalfHeight - 10; y < NorthEnd + 10; y++)
         {
             int variant = Mathf.Abs(x * 7 + y * 13 + x * y) % 3;
             string ground = GroundAt(x, y);
@@ -477,16 +492,16 @@ public static class TownBuilder
     }
 
     // The roads out of town are closed until later chapters.
-    // Returns the east barricade, which comes down when the power is restored.
-    static GameObject BuildExits()
+    // Returns the east and north barricades, which come down as chapters are finished.
+    static (GameObject east, GameObject north) BuildExits()
     {
         var east = Barricade(new Vector3(61f, 0f, 0f), true,
             "|ROAD CLOSED. The line to the paddy fields is down. Get the power back on first.");
-        Barricade(new Vector3(0f, 37f, 0f), false,
-            "|ROAD CLOSED. Beyond here is the old Raja Talkies. Nobody goes there after dark.   (Chapter 3)");
+        var north = Barricade(new Vector3(0f, 37f, 0f), false,
+            "|ROAD CLOSED. Beyond here is the old Raja Talkies. Nobody goes there after dark.");
         Barricade(new Vector3(-61f, -24f, 0f), true,
             "|ROAD CLOSED. The goods yard is past the level crossing.   (Chapter 4)");
-        return east;
+        return (east, north);
     }
 
     static GameObject Barricade(Vector3 centre, bool acrossHorizontalRoad, string sign)
@@ -611,6 +626,125 @@ public static class TownBuilder
         quests.FindProperty("minnal").objectReferenceValue = minnal;
     }
 
+    // Chapter 3: the cinema yard. A projector, three mirrors to bounce its beam
+    // onto the screen, three lost film reels, the watchman, and the ghosts.
+    static void BuildCinema(SerializedObject quests, GameObject northBarricade, WorldSpawner spawner)
+    {
+        blocked.Add(new Rect(Yard.xMin - 2, Yard.yMin - 2, Yard.width + 4, Yard.height + 4));
+
+        var screen = Prop("Cinema Screen", "Props/cinema_screen", new Vector3(12f, 84f, 0f));
+        Solid(screen, 9.6f, 0.5f);
+        var target = Child(screen, "Beam Target", new Vector3(0f, 2f, 0f));
+        var screenGlow = Child(screen, "Film Light", new Vector3(0f, 0.5f, 0f));
+        Light(screenGlow, new Color(0.95f, 0.95f, 1f), 1.5f, 3f, 16f);
+        screenGlow.AddComponent<FlickerLight>();
+        screenGlow.SetActive(false);
+
+        var booth = Building("Projector Booth", "Props/projector_off", -12f, 64.5f);
+        Act(booth, "Inspect", "projector");
+        var origin = Child(booth, "Beam Origin", new Vector3(1.5f, 1.72f, 0f));
+        var pool = Light(Child(booth, "Pool", new Vector3(0.5f, -0.6f, 0f)), Warm, 1.3f, 1f, 5.5f);
+        var glow = Glow(booth, new Vector3(1.4f, 1.72f, 0f), new Color(1f, 1f, 0.9f), 0.5f);
+        booth.AddComponent<NetworkObject>();
+        var projector = booth.AddComponent<StreetLight>();
+        Set(projector, "needed", 4);
+        Set(projector, "isStreetlight", false);
+        Set(projector, "pole", booth.GetComponent<SpriteRenderer>());
+        Set(projector, "litSprite", Load("Props/projector_on"));
+        Set(projector, "deadSprite", Load("Props/projector_off"));
+        Set(projector, "pool", pool);
+        Set(projector, "glow", glow);
+
+        // The beam leaves the booth heading east at this height; mirrors stand
+        // so their glass (0.7 above their feet) is exactly in its path.
+        float beamY = origin.transform.position.y;
+        Vector3[] mirrorSpots = { new(0f, beamY - 0.7f, 0f), new(0f, beamY + 11.3f, 0f), new(12f, beamY + 11.3f, 0f) };
+        var mirrors = quests.FindProperty("mirrors");
+        mirrors.arraySize = mirrorSpots.Length;
+        for (int i = 0; i < mirrorSpots.Length; i++)
+        {
+            var mirror = Prop("Mirror", "Props/mirror_backslash", mirrorSpots[i]);
+            Solid(mirror, 0.5f, 0.3f);
+            Act(mirror, "Turn the mirror", $"mirror{i}");
+            mirrors.GetArrayElementAtIndex(i).objectReferenceValue = mirror.GetComponent<SpriteRenderer>();
+        }
+
+        var beam = new GameObject("Projector Beam").AddComponent<LineRenderer>();
+        beam.sharedMaterial = GlowMaterial();
+        beam.startWidth = beam.endWidth = 0.3f;
+        beam.startColor = beam.endColor = new Color(1f, 0.96f, 0.7f, 0.9f);
+        beam.sortingOrder = GlowOrder;
+        beam.enabled = false;
+
+        foreach (float y in new[] { 69f, 72f, 75f })
+        foreach (float x in new[] { -19f, -15f, -9f, -5f, 5f, 9f, 16f, 20f })
+            Solid(Prop("Bench", "Props/bench", new Vector3(x, y, 0f)), 1.9f, 0.4f);
+
+        Vector3[] reels = { new(-19f, 88f, 0f), new(20.5f, 61f, 0f), new(18f, 80f, 0f) };
+        for (int i = 0; i < reels.Length; i++)
+            Pickup("Film Reel", "Items/reel", reels[i], $"reel{i}");
+
+        var watchman = Prop("Watchman Kannan", "Characters/watchman", new Vector3(3.4f, 56.4f, 0f));
+        Solid(watchman, 0.6f, 0.4f);
+        Act(watchman, "Talk", "watchman");
+        var lantern = Child(watchman, "Lantern", new Vector3(0.5f, 0.6f, 0f));
+        Light(lantern, new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.5f);
+        lantern.AddComponent<FlickerLight>();
+        Glow(watchman, new Vector3(0.5f, 0.6f, 0f), new Color(1f, 0.75f, 0.4f), 0.3f);
+
+        var minnal = Prop("Minnal On Screen", "Characters/minnal", new Vector3(12f, 86.2f, 0f));
+        var minnalSprite = minnal.GetComponent<SpriteRenderer>();
+        minnalSprite.sharedMaterial = GlowMaterial();
+        minnalSprite.sortingOrder = GlowOrder;
+        var cameo = minnal.AddComponent<MinnalCameo>();
+        Set(cameo, "glow", Light(minnal, new Color(1f, 0.95f, 0.6f), 3f, 0.3f, 5f));
+        var escape = new SerializedObject(cameo);
+        escape.FindProperty("escape").vector3Value = new Vector3(-34f, -6f, 0f);
+        escape.ApplyModifiedPropertiesWithoutUndo();
+        minnal.SetActive(false);
+
+        // The ghosts are spawned by the server when a game starts.
+        var ghost = new GameObject("Ghost");
+        var sheet = Child(ghost, "Sheet", new Vector3(0f, 0.2f, 0f)).AddComponent<SpriteRenderer>();
+        sheet.sprite = Load("Characters/ghost");
+        sheet.sharedMaterial = GlowMaterial(); // faintly visible even in the dark
+        sheet.color = new Color(0.8f, 0.85f, 1f, 0.9f);
+        sheet.sortingOrder = GlowOrder;
+        ghost.AddComponent<NetworkObject>();
+        SyncedPosition(ghost);
+        Set(ghost.AddComponent<Ghost>(), "body", sheet);
+        var ghostPrefab = SavePrefab(ghost);
+        AddSpawnable(ghostPrefab);
+
+        var haunts = new GameObject("GhostSpots");
+        foreach (var spot in new[] { new Vector3(-15f, 84f, 0f), new Vector3(17f, 66f, 0f), new Vector3(14f, 79f, 0f) })
+            Child(haunts, "Haunt", spot);
+        Set(spawner, "ghostPrefab", ghostPrefab.GetComponent<NetworkObject>());
+        Set(spawner, "ghostSpots", haunts.transform);
+
+        var spook = new GameObject("Spook Point");
+        spook.transform.position = new Vector3(0f, 54.5f, 0f);
+
+        Fill(quests.FindProperty("pumpOff"), new List<GameObject> { northBarricade });
+        quests.FindProperty("projector").objectReferenceValue = projector;
+        quests.FindProperty("beamOrigin").objectReferenceValue = origin.transform;
+        quests.FindProperty("screenTarget").objectReferenceValue = target.transform;
+        quests.FindProperty("spookPoint").objectReferenceValue = spook.transform;
+        quests.FindProperty("mirrorSlash").objectReferenceValue = Load("Props/mirror_slash");
+        quests.FindProperty("mirrorBackslash").objectReferenceValue = Load("Props/mirror_backslash");
+        quests.FindProperty("beam").objectReferenceValue = beam;
+        quests.FindProperty("screenGlow").objectReferenceValue = screenGlow;
+        quests.FindProperty("minnalOnScreen").objectReferenceValue = minnal;
+    }
+
+    // Adds a prefab to the list of things the server is allowed to spawn.
+    static void AddSpawnable(GameObject prefab)
+    {
+        var list = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>("Assets/Prefabs/SpawnablePrefabs.asset");
+        list.Add(new NetworkPrefab { Prefab = prefab });
+        EditorUtility.SetDirty(list);
+    }
+
     // A small thing lying on the ground, with a faint glint so a torch can find it.
     static void Pickup(string name, string sprite, Vector3 position, string action)
     {
@@ -639,10 +773,10 @@ public static class TownBuilder
     {
         var random = new System.Random(11);
         int planted = 0;
-        for (int attempt = 0; attempt < 2500 && planted < 150; attempt++)
+        for (int attempt = 0; attempt < 4000 && planted < 210; attempt++)
         {
             float x = random.Next(-HalfWidth - 6, HalfWidth + 6) + (float)random.NextDouble();
-            float y = random.Next(-HalfHeight - 4, HalfHeight + 4) + (float)random.NextDouble();
+            float y = random.Next(-HalfHeight - 4, NorthEnd + 4) + (float)random.NextDouble();
             var point = new Vector2(x, y);
 
             // Trees only grow on open grass, with a little room around the trunk.
@@ -676,7 +810,12 @@ public static class TownBuilder
             if (Vector2.Distance(new Vector2(x, y), new Vector2(-9f, 0.5f)) < 7f) continue; // not right at the start
             Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
         }
-        while (spots.childCount < 125) // and some out in the fields
+        while (spots.childCount < 110) // some around the cinema
+        {
+            float x = random.Next(-22, 22) + 0.5f, y = random.Next(44, 90) + 0.5f;
+            if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
+        }
+        while (spots.childCount < 140) // and some out in the fields
         {
             float x = random.Next(FieldsStart, FieldsEnd - 2) + 0.5f, y = random.Next(-24, 23) + 0.5f;
             if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
@@ -690,7 +829,7 @@ public static class TownBuilder
         edge.points = new[]
         {
             new Vector2(-HalfWidth, -HalfHeight), new Vector2(FieldsEnd, -HalfHeight),
-            new Vector2(FieldsEnd, HalfHeight), new Vector2(-HalfWidth, HalfHeight),
+            new Vector2(FieldsEnd, NorthEnd), new Vector2(-HalfWidth, NorthEnd),
             new Vector2(-HalfWidth, -HalfHeight),
         };
     }

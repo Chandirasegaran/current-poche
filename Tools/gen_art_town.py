@@ -444,13 +444,13 @@ def make_characters():
 
 def font_atlas():
     """ASCII 32..127 in a 16x6 grid. The game measures each glyph's width itself."""
-    cw, ch = 12, 16
-    font = ImageFont.truetype(TEXT_FONT, 10)
+    cw, ch = 10, 14
+    font = ImageFont.truetype(TEXT_FONT.replace("-Bold", ""), 9)
     mask = Image.new("1", (cw * 16, ch * 6), 0)
     d = ImageDraw.Draw(mask)
     for code in range(32, 127):
         col, row = (code - 32) % 16, (code - 32) // 16
-        d.text((col * cw, row * ch + 1), chr(code), font=font, fill=1)
+        d.text((col * cw + 1, row * ch + 1), chr(code), font=font, fill=1)  # 1px in, so nothing bleeds into the next cell
     img = Image.new("RGBA", mask.size, CLEAR)
     img.paste(Image.new("RGBA", mask.size, (255, 255, 255, 255)), (0, 0), mask)
     return img
@@ -725,6 +725,128 @@ def make_fields_art():
     save(small(["bbbbbb", "b....b", "b....b", "bbbbbb"], {"b": "#2a2630"}), "Items", "belt.png")
 
 
+# ---------------------------------------------------------------- chapter 3: Raja Talkies
+
+def wall_tile(seed):
+    rnd = random.Random(seed)
+    img = Image.new("RGBA", (16, 16), rgb("#8a4a3c"))
+    px = img.load()
+    for y in range(16):
+        for x in range(16):
+            if y % 4 == 3 or (x + (y // 4) * 4) % 8 == 7:
+                px[x, y] = rgb("#5f332b")
+            elif rnd.random() < 0.08:
+                px[x, y] = rgb("#9a5646")
+    for x in range(16):
+        px[x, 0] = rgb("#b06a58")
+    return img
+
+
+def cinema_screen():
+    w, h = 160, 76
+    img = Image.new("RGBA", (w, h), CLEAR)
+    d = ImageDraw.Draw(img)
+    post = rgb("#5a4634")
+    for x in (6, w - 9):
+        d.rectangle([x, 4, x + 2, h - 1], fill=post)
+    d.rectangle([2, 2, w - 3, 58], fill=rgb("#d9d6cc"), outline=OUTLINE)
+    d.rectangle([5, 5, w - 6, 55], fill=rgb("#ecebe4"))
+    rnd = random.Random(8)
+    for _ in range(60):  # stains and patches on the old cloth
+        img.putpixel((rnd.randrange(6, w - 6), rnd.randrange(6, 55)), rgb("#d0cdc2"))
+    d.rectangle([40, 30, 52, 40], fill=rgb("#dedbd0"))
+    return outlined(img)
+
+
+def projector_booth():
+    img = Image.new("RGBA", (48, 56), CLEAR)
+    d = ImageDraw.Draw(img)
+    wall = rgb("#6d7a9a")
+    d.rectangle([2, 12, 45, 51], fill=wall, outline=OUTLINE)
+    d.rectangle([3, 13, 44, 17], fill=shade(wall, 0.72))
+    d.rectangle([0, 6, 47, 12], fill=rgb("#b4553b"), outline=OUTLINE)
+    d.rectangle([6, 28, 20, 51], fill=rgb("#2a1f2b"), outline=OUTLINE)  # door
+    d.rectangle([28, 22, 45, 34], fill=rgb("#141726"), outline=OUTLINE)  # projection window
+    d.rectangle([38, 25, 47, 31], fill=rgb("#3a3d46"), outline=OUTLINE)  # the lens pokes out
+    d.rectangle([45, 26, 47, 30], fill=rgb("#cfe3ea"))
+    d.ellipse([29, 15, 35, 21], outline=rgb("#17131f"))  # reels on the wall
+    d.ellipse([37, 15, 43, 21], outline=rgb("#17131f"))
+    stone = rgb("#8f867a")
+    d.rectangle([0, 52, 47, 55], fill=stone, outline=OUTLINE)
+    return img
+
+
+def mirror(leaning_right):
+    img = Image.new("RGBA", (18, 26), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([8, 12, 9, 25], fill=rgb("#6b4c33"))
+    d.rectangle([5, 23, 12, 25], fill=rgb("#5a4030"))
+    frame, glass = rgb("#c9a45a"), rgb("#cfe9f5")
+    if leaning_right:  # like a forward slash
+        d.polygon([(2, 14), (5, 16), (16, 4), (13, 1)], fill=frame)
+        d.line([4, 14, 14, 3], fill=glass, width=2)
+    else:
+        d.polygon([(15, 14), (12, 16), (1, 4), (4, 1)], fill=frame)
+        d.line([13, 14, 3, 3], fill=glass, width=2)
+    return outlined(img)
+
+
+def bench():
+    img = Image.new("RGBA", (32, 12), CLEAR)
+    d = ImageDraw.Draw(img)
+    wood = rgb("#7b5b3d")
+    d.rectangle([0, 0, 31, 4], fill=wood)
+    d.line([0, 0, 31, 0], fill=shade(wood, 1.3))
+    for x in (2, 27):
+        d.rectangle([x, 5, x + 2, 11], fill=shade(wood, 0.7))
+    return outlined(img)
+
+
+def ghost():
+    art = [
+        "....wwwwww....",
+        "..wwwwwwwwww..",
+        ".wwwwwwwwwwww.",
+        ".wwwewwwwewww.",
+        ".wwweewwweeww.",
+        "wwwwwwwwwwwwww",
+        "wwwwwwoowwwwww",
+        "wwwwwwoowwwwww",
+        "wwwwwwwwwwwwww",
+        "wwwwwwwwwwwwww",
+        "wwwwwwwwwwwwww",
+        "wwwwwwwwwwwwww",
+        "wwwwwwwwwwwwww",
+        "wwswwwwwwwswww",
+        "wws.wwwssww.ww",
+        ".w...ww..w...w",
+    ]
+    img = Image.new("RGBA", (14, len(art)), CLEAR)
+    pal = {"w": rgb("#eef2ff", 235), "s": rgb("#c4cbe6", 235), "e": rgb("#1b1622"), "o": rgb("#3a3350")}
+    for y, row in enumerate(art):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), pal[ch])
+    return img
+
+
+def make_cinema_art():
+    for i in range(3):
+        save(wall_tile(740 + i), "Tiles", f"wall_{i}.png")
+    save(cinema_screen(), "Props", "cinema_screen.png")
+    save(projector_booth(), "Props", "projector_off.png")
+    lit = projector_booth()
+    ImageDraw.Draw(lit).rectangle([29, 23, 37, 33], fill=rgb("#fff2b3"))
+    ImageDraw.Draw(lit).rectangle([45, 26, 47, 30], fill=rgb("#ffffff"))
+    save(lit, "Props", "projector_on.png")
+    save(mirror(True), "Props", "mirror_slash.png")
+    save(mirror(False), "Props", "mirror_backslash.png")
+    save(bench(), "Props", "bench.png")
+    save(ghost(), "Characters", "ghost.png")
+    save(adult("#d9d9e0", "#b9774d", "#8f7a4a", "#4a6fa5", hem="#3a5a8a", moustache=True), "Characters", "watchman.png")
+    save(small([".ggg.", "g.g.g", "ggwgg", "g.g.g", ".ggg."], {"g": "#6f7683", "w": "#f3ead7"}), "Items", "reel.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -732,3 +854,4 @@ def main():
     make_ui()
     make_quest_art()
     make_fields_art()
+    make_cinema_art()

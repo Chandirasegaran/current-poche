@@ -32,6 +32,9 @@ public class GameUI : MonoBehaviour
     CanvasScaler scaler;
     GameObject title, hud, dialogue, pause, toast;
     Button soloButton, hostButton, joinButton;
+    GameObject eraseButton;
+    bool showTasks = true;
+    float joinedAt;
     GameObject questPanel;
     PixelLabel questLabel, iceLabel;
     int blipped;
@@ -88,6 +91,8 @@ public class GameUI : MonoBehaviour
 
         bool usable = sessions != null && sessions.Ready && !sessions.Busy;
         soloButton.interactable = sessions != null && !sessions.Busy; // solo works offline too
+        eraseButton.SetActive(Quests.HasSave);
+        joinedAt = Time.time;
         hostButton.interactable = usable;
         joinButton.interactable = usable && codeEntry.Length > 0;
         statusLabel.Text = sessions != null ? sessions.Status : "";
@@ -129,7 +134,15 @@ public class GameUI : MonoBehaviour
 
         if (!introShown)
         {
+            // Wait a moment so a saved game has loaded before deciding what to show.
+            if (Time.time - joinedAt < 0.8f) return;
             introShown = true;
+            if (Quests.Instance != null && Quests.Instance.HasProgress)
+            {
+                celebrated = lit == total;
+                Toast("Welcome back. Your progress was loaded.\nCheck the task list for what is left.");
+                return;
+            }
             Say(Intro);
             afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nTab hides the task list.";
         }
@@ -141,7 +154,8 @@ public class GameUI : MonoBehaviour
         }
 
         var quests = Quests.Instance;
-        if (keyboard.tabKey.wasPressedThisFrame) questPanel.SetActive(!questPanel.activeSelf);
+        if (keyboard.tabKey.wasPressedThisFrame) showTasks = !showTasks;
+        questPanel.SetActive(showTasks && !dialogue.activeSelf); // never cover the story
         if (quests != null)
         {
             questLabel.Text = quests.LogText();
@@ -164,6 +178,8 @@ public class GameUI : MonoBehaviour
         hintLabel.gameObject.SetActive(nearby != null);
         if (nearby != null) hintLabel.Text = $"[E] {nearby.verb}";
 
+        // Messages sit at the bottom of the screen, or just above the dialogue box.
+        ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 70f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
     }
 
@@ -273,32 +289,34 @@ public class GameUI : MonoBehaviour
             () => _ = SessionManager.Instance.Join(codeEntry));
         statusLabel = Label(title.transform, "", top, top, new Vector2(0, -186), Yellow);
         Label(title.transform, "Segar Games", bottom, bottom, new Vector2(0, 3), Dim);
+        eraseButton = MakeButton(title.transform, "ERASE SAVE", Vector2.right, new Vector2(-58, 26), new Vector2(104, 20),
+            Quests.EraseSave).gameObject;
 
         // ---- in-game heads-up display
         hud = Group(canvas, "HUD");
-        var codePanel = Box(hud.transform, "panel_9s", topLeft, topLeft, new Vector2(6, -6), new Vector2(114, 36));
+        var codePanel = Box(hud.transform, "panel_9s", topLeft, topLeft, new Vector2(6, -6), new Vector2(98, 31));
         Label(codePanel.transform, "CODE", topLeft, topLeft, new Vector2(8, -4), Dim);
-        codeLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(44, -4), Yellow);
-        playersLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(8, -18), Pale);
+        codeLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(38, -4), Yellow);
+        playersLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(8, -15), Pale);
 
-        var lightsPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -6), new Vector2(80, 22));
+        var lightsPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -6), new Vector2(66, 20));
         bulbIcon = Box(lightsPanel.transform, "bulb_off", topLeft, topLeft, new Vector2(7, -4), Vector2.zero);
         ActualSize(bulbIcon);
-        lightsLabel = Label(lightsPanel.transform, "", topLeft, topLeft, new Vector2(24, -4), Pale);
+        lightsLabel = Label(lightsPanel.transform, "", topLeft, topLeft, new Vector2(22, -4), Pale);
 
-        questPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -32), new Vector2(158, 92)).gameObject;
-        questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(8, -5), Pale);
+        questPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -29), new Vector2(112, 77)).gameObject;
+        questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(7, -4), Pale);
         iceLabel = Label(hud.transform, "", top, top, new Vector2(0, -8), new Color(0.6f, 0.9f, 1f));
 
-        hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 70), Yellow);
+        hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 112), Yellow);
 
-        toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 86), new Vector2(262, 48)).gameObject;
-        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 246);
+        toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 80), new Vector2(236, 42)).gameObject;
+        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 222);
         toast.SetActive(false);
 
-        dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(340, 60)).gameObject;
+        dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(300, 58)).gameObject;
         speakerLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -5), Yellow);
-        lineLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -19), Pale, 320);
+        lineLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -17), Pale, 280);
         moreLabel = Label(dialogue.transform, ">", Vector2.right, Vector2.right, new Vector2(-8, 4), Yellow);
         dialogue.SetActive(false);
 

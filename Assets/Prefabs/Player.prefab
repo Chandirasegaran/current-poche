@@ -497,7 +497,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363311477883245
+    rid: 7806363311477883574
   m_FalloffIntensity: 0.65
   m_Color: {r: 1, g: 0.9, b: 0.75, a: 1}
   m_Intensity: 0.55
@@ -543,7 +543,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363311477883245
+    - rid: 7806363311477883574
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3
@@ -601,7 +601,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363311477883244
+    rid: 7806363311477883573
   m_FalloffIntensity: 0.6
   m_Color: {r: 1, g: 0.92, b: 0.72, a: 1}
   m_Intensity: 1.9
@@ -647,7 +647,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363311477883244
+    - rid: 7806363311477883573
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3

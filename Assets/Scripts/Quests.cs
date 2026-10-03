@@ -1,4 +1,7 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -27,7 +30,21 @@ public class Quests : NetworkBehaviour
         IceDelivered = 16, BallsReturned = 32, PowerRestored = 64,
         // Chapter 2: the fields
         BridgeDown = 128, BeltTaken = 256, BeltFitted = 512, PumpStarted = 1024,
+        // Chapter 3: Raja Talkies
+        FilmPlayed = 2048,
     }
+
+    public const int ReelCount = 3;
+
+    static readonly string[] FilmEnding =
+    {
+        "|The beam finds the screen. The old film crackles to life: a hero, a villain, a song in the rain.",
+        "|And in the middle of the picture sits a tiny shape made of light, watching the film with its mouth open.",
+        "Watchman Kannan|Aiyo. THAT is no ghost. The ghost was only my bedsheets on the line. That is something else.",
+        "|The little lightning notices you. It squeaks, pulls the glow off the screen like a blanket, and shoots away west, along the railway line.",
+        "Watchman Kannan|Poor thing. I think it only wanted a night-light. ...West is the goods yard, kanna. Mind the trains.",
+        "|CHAPTER 3 COMPLETE.   (Chapter 4: Goods Yard is coming.)",
+    };
 
     const float ValveSeconds = 30f;
 
@@ -38,7 +55,7 @@ public class Quests : NetworkBehaviour
         "|Something on the roof of the pump-house is glowing. It is the size of a kitten, and shaped like a lightning bolt.",
         "|It drinks the spark straight out of the motor, looks at you with two round, frightened eyes, and is gone. North. Towards the old cinema.",
         "Farmer Periyasamy|...That was not a minmini.",
-        "|CHAPTER 2 COMPLETE.   (Chapter 3: Last Show at Raja Talkies is coming.)",
+        "|CHAPTER 2 COMPLETE.   The road north to Raja Talkies is open.",
     };
 
     public static Quests Instance { get; private set; }
@@ -50,14 +67,150 @@ public class Quests : NetworkBehaviour
     [SerializeField] Sprite valveShut, valveOpen;
     [SerializeField] StreetLight pump;
     [SerializeField] GameObject minnal;
+    [SerializeField] GameObject[] pumpOff; // removed once the pump runs (the north barricade)
+    [SerializeField] StreetLight projector;
+    [SerializeField] Transform beamOrigin, screenTarget, spookPoint;
+    [SerializeField] SpriteRenderer[] mirrors;
+    [SerializeField] Sprite mirrorSlash, mirrorBackslash;
+    [SerializeField] LineRenderer beam;
+    [SerializeField] GameObject screenGlow, minnalOnScreen;
 
     readonly NetworkVariable<int> flags = new();
     readonly NetworkVariable<int> ballMask = new();
     readonly NetworkVariable<int> fuses = new();
     readonly NetworkVariable<double> iceMeltsAt = new();
     readonly NetworkVariable<Vector3> valveShutsAt = new(); // one time per valve (x, y, z)
+    readonly NetworkVariable<int> reelMask = new();   // which film reels have been found
+    readonly NetworkVariable<int> mirrorMask = new(); // which mirrors lean like a forward slash
+
+    readonly List<Vector3> beamPoints = new();
+
+    public bool FilmPlayed => Has(Flag.FilmPlayed);
+    public Vector3 SpookPoint => spookPoint.position;
+
+    static int Bits(int mask, int count)
+    {
+        int set = 0;
+        for (int i = 0; i < count; i++)
+            if ((mask & (1 << i)) != 0) set++;
+        return set;
+    }
+
+    int ReelsFound => Bits(reelMask.Value, ReelCount);
+
+    // Follows the projector beam as it bounces off the mirrors. Returns true if
+    // it ends on the screen. A "/" mirror turns east into north; a "\" mirror
+    // turns east into south.
+    bool TraceBeam()
+    {
+        beamPoints.Clear();
+        Vector2 position = beamOrigin.position;
+        Vector2 direction = Vector2.right;
+        beamPoints.Add(position);
+
+        for (int bounce = 0; bounce < 8; bounce++)
+        {
+            int hit = -1;
+            float nearest = 60f;
+            for (int i = 0; i < mirrors.Length; i++)
+            {
+                Vector2 to = (Vector2)mirrors[i].transform.position + Vector2.up * 0.7f - position;
+                float along = Vector2.Dot(to, direction);
+                float aside = Mathf.Abs(to.x * direction.y - to.y * direction.x);
+                if (along > 0.1f && aside < 0.3f && along < nearest) { hit = i; nearest = along; }
+            }
+
+            Vector2 screen = screenTarget.position;
+            if (direction == Vector2.up && Mathf.Abs(position.x - screen.x) < 4.8f &&
+                screen.y > position.y && screen.y - position.y < nearest)
+            {
+                beamPoints.Add(new Vector2(position.x, screen.y));
+                return true;
+            }
+
+            if (hit < 0)
+            {
+                beamPoints.Add(position + direction * 30f);
+                return false;
+            }
+
+            position = (Vector2)mirrors[hit].transform.position + Vector2.up * 0.7f;
+            beamPoints.Add(position);
+            bool slash = (mirrorMask.Value & (1 << hit)) != 0;
+            direction = slash ? new Vector2(direction.y, direction.x) : new Vector2(-direction.y, -direction.x);
+        }
+        return false;
+    }
 
     Interactable[] actors;
+    bool loading;
+
+    // ------------------------------------------------------------ saving
+    // The host's machine keeps the story in a small file, written whenever
+    // something is achieved and read back when a game starts.
+
+    [Serializable]
+    class SaveData
+    {
+        public int flags, ballMask, fuses, reelMask, mirrorMask;
+        public List<string> lit = new(); // which lamps (and the pump) are powered
+    }
+
+    static string SavePath => Path.Combine(Application.persistentDataPath, "story.json");
+    public static bool HasSave => File.Exists(SavePath);
+
+    public static void EraseSave()
+    {
+        if (HasSave) File.Delete(SavePath);
+    }
+
+    // True once the players have got anywhere, so the opening scene can be skipped.
+    public bool HasProgress => IsSpawned && (flags.Value != 0 || LampsLit > 1);
+
+    static string Key(StreetLight lamp) =>
+        $"{Mathf.RoundToInt(lamp.transform.position.x * 10)},{Mathf.RoundToInt(lamp.transform.position.y * 10)}";
+
+    public void Save()
+    {
+        if (!IsSpawned || !IsServer || loading) return;
+        var data = new SaveData
+        {
+            flags = flags.Value, ballMask = ballMask.Value, fuses = fuses.Value,
+            reelMask = reelMask.Value, mirrorMask = mirrorMask.Value,
+        };
+        foreach (var lamp in StreetLight.Feedable)
+            if (lamp.IsLit) data.lit.Add(Key(lamp));
+        File.WriteAllText(SavePath, JsonUtility.ToJson(data));
+    }
+
+    IEnumerator Load()
+    {
+        yield return null; // give the streetlights a frame to appear on the network
+
+        SaveData data = null;
+        try { if (HasSave) data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath)); }
+        catch (Exception e) { Debug.LogException(e); }
+        if (data == null)
+        {
+            loading = false;
+            yield break;
+        }
+
+        // Anything that was being carried when the game stopped goes back where it was.
+        int saved = data.flags;
+        if ((saved & (int)Flag.GlassesReturned) == 0) saved &= ~(int)Flag.GlassesFound;
+        if ((saved & (int)Flag.BeltFitted) == 0) saved &= ~(int)Flag.BeltTaken;
+
+        flags.Value = saved;
+        ballMask.Value = data.ballMask;
+        fuses.Value = data.fuses;
+        reelMask.Value = data.reelMask;
+        mirrorMask.Value = data.mirrorMask;
+        foreach (var lamp in StreetLight.Feedable)
+            if (data.lit.Contains(Key(lamp)) && !lamp.IsLit) lamp.ForceLit();
+        yield return null;
+        loading = false;
+    }
 
     bool Has(Flag flag) => (flags.Value & (int)flag) != 0;
     void Raise(Flag flag) => flags.Value |= (int)flag;
@@ -102,21 +255,43 @@ public class Quests : NetworkBehaviour
     {
         if (IsServer)
         {
+            // Nothing is written to the save file until the old one has been read.
+            loading = true;
             flags.Value = ballMask.Value = fuses.Value = 0;
             iceMeltsAt.Value = 0;
             valveShutsAt.Value = Vector3.zero;
+            reelMask.Value = mirrorMask.Value = 0;
+            StartCoroutine(Load());
+            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask })
+                counter.OnValueChanged += OnCounterChanged;
         }
         flags.OnValueChanged += OnFlagsChanged;
     }
 
-    public override void OnNetworkDespawn() => flags.OnValueChanged -= OnFlagsChanged;
+    public override void OnNetworkDespawn()
+    {
+        flags.OnValueChanged -= OnFlagsChanged;
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask })
+            counter.OnValueChanged -= OnCounterChanged;
+    }
+
+    void OnCounterChanged(int before, int now) => Save();
 
     void OnFlagsChanged(int before, int now)
     {
         bool Became(Flag flag) => (before & (int)flag) == 0 && (now & (int)flag) != 0;
 
+        if (loading) return; // restoring a save: no fanfare for old news
+        Save();
+
         if (Became(Flag.PowerRestored)) Sfx.Play("power");
         if (Became(Flag.BridgeDown)) Sfx.Play("lamp");
+        if (Became(Flag.FilmPlayed))
+        {
+            Sfx.Play("power");
+            minnalOnScreen.SetActive(true);
+            if (GameUI.Instance != null) GameUI.Instance.Say(FilmEnding);
+        }
         if (Became(Flag.PumpStarted))
         {
             Sfx.Play("power");
@@ -167,8 +342,26 @@ public class Quests : NetworkBehaviour
         for (int i = 0; i < valves.Length; i++)
             valves[i].sprite = bridge || ValveOpen(i) ? valveOpen : valveShut;
 
+        // Raja Talkies: the mirrors, the beam, and the glowing screen.
+        bool pumped = IsSpawned && Has(Flag.PumpStarted);
+        foreach (var go in pumpOff) go.SetActive(!pumped);
+        for (int i = 0; i < mirrors.Length; i++)
+            mirrors[i].sprite = (mirrorMask.Value & (1 << i)) != 0 ? mirrorSlash : mirrorBackslash;
+
+        bool projecting = IsSpawned && projector.IsLit;
+        bool onScreen = projecting && TraceBeam();
+        beam.enabled = projecting;
+        if (projecting)
+        {
+            beam.positionCount = beamPoints.Count;
+            beam.SetPositions(beamPoints.ToArray());
+        }
+        screenGlow.SetActive(IsSpawned && FilmPlayed);
+
         if (IsSpawned && IsServer)
         {
+            projector.Locked = ReelsFound < ReelCount;
+            if (onScreen && !FilmPlayed) Raise(Flag.FilmPlayed);
             pump.Locked = !Has(Flag.BeltFitted);
             if (!Has(Flag.BridgeDown) && ValvesOpen == 3)
             {
@@ -192,6 +385,7 @@ public class Quests : NetworkBehaviour
         if (!IsSpawned) return true;
         if (action == "glasses") return !Has(Flag.GlassesFound);
         if (action.StartsWith("ball")) return (ballMask.Value & (1 << (action[4] - '0'))) == 0;
+        if (action.StartsWith("reel")) return (reelMask.Value & (1 << (action[4] - '0'))) == 0;
         return true;
     }
 
@@ -199,10 +393,15 @@ public class Quests : NetworkBehaviour
     public string LogText()
     {
         if (!IsSpawned) return "";
-        if (Has(Flag.PumpStarted)) return "Chapter 2 complete!\nMore is coming.";
+        if (FilmPlayed) return "Chapter 3 complete!\nMore is coming.";
+        if (Has(Flag.PumpStarted))
+            return "Raja Talkies\n"
+                   + (ReelsFound == ReelCount ? "+ " : "- ") + $"Film reels {ReelsFound}/{ReelCount}\n"
+                   + (projector.IsLit ? "+ " : "- ") + $"Projector {projector.Charge}/{projector.Needed}\n"
+                   + "- Beam to the screen";
         if (PowerRestored)
             return "The Pump-set\n"
-                   + (Has(Flag.BridgeDown) ? "+ " : "- ") + "Open the sluice bridge\n"
+                   + (Has(Flag.BridgeDown) ? "+ " : "- ") + "Open the bridge\n"
                    + (Has(Flag.BeltFitted) ? "+ " : "- ") + "Find the fan belt\n"
                    + $"- Start the pump {pump.Charge}/{pump.Needed}";
         string Line(bool done, string text) => (done ? "+ " : "- ") + text + "\n";
@@ -233,6 +432,7 @@ public class Quests : NetworkBehaviour
         switch (action)
         {
             case "lineman":
+                if (FilmPlayed) return new[] { "Lineman Murugesan|West, along the railway? Then it is heading for the goods yard. I will oil my cycle. You get some sleep." };
                 if (Has(Flag.PumpStarted)) return new[] { "Lineman Murugesan|A lightning bolt. With EYES. Thambi, I have worked for the Electricity Board for nineteen years and nobody told me about this." };
                 if (PowerRestored) return new[] { "Lineman Murugesan|Did you see where those minminis went? East, over the fields. The road is open now. Go and see old Periyasamy at the pump-set, and mind the bunds: one wrong step and you are in the paddy." };
                 if (lamps == total && Fuses >= FusesNeeded) return new[] { "Lineman Murugesan|Every lamp lit AND four fuses? Go, go! Push them into the transformer by the EB office, at the east end of the bazaar." };
@@ -331,6 +531,9 @@ public class Quests : NetworkBehaviour
                 };
         }
 
+        if (action.StartsWith("mirror")) return Array.Empty<string>();
+        if (action.StartsWith("reel")) return new[] { $"|A dusty reel of film. The label says PART {action[4] - '0' + 1}. That makes {ReelsFound + 1} of {ReelCount}." };
+
         if (action.StartsWith("valve"))
         {
             if (!Has(Flag.BridgeDown) && GameUI.Instance != null)
@@ -344,6 +547,22 @@ public class Quests : NetworkBehaviour
                 return Has(Flag.BridgeDown)
                     ? new[] { "|The sluice bridge is down. The canal rushes underneath." }
                     : new[] { "|The sluice bridge is raised. A faded sign: OPEN ALL THREE VALVES TO LOWER. There are valve wheels out on the bunds, north, south and east of here." };
+
+            case "watchman":
+                if (FilmPlayed) return new[] { "Watchman Kannan|Forty years of films on that screen, and the best show was tonight." };
+                if (projector.IsLit) return new[] { "Watchman Kannan|She is running! Now the beam has to reach the screen. Those mirrors were for the matinee crowd to fix their hair. Turn them until the light gets there." };
+                if (ReelsFound == ReelCount) return new[] { $"Watchman Kannan|All three reels! Thread them in... there. The lamp is cold, though. {projector.Needed} of your glow-bugs at the projector booth should wake it." };
+                return new[]
+                {
+                    "Watchman Kannan|Raja Talkies. Closed since the big storm, except for me and the ghost.",
+                    "Watchman Kannan|Something bright flew in here tonight and hid in the projector. It will not come out. Maybe if the film were running...",
+                    $"Watchman Kannan|The last film is in three reels, lost somewhere in the yard. You have {ReelsFound}. And if the white thing comes for you, shine your torch right at it. It stops dead.",
+                };
+
+            case "projector":
+                if (projector.IsLit) return new[] { "|The projector rattles happily. A hard white beam shoots out across the yard." };
+                if (ReelsFound < ReelCount) return new[] { $"|An old film projector. The spools are empty. Reels: {ReelsFound} of {ReelCount}." };
+                return new[] { $"|The reels are threaded, but the lamp is dead. It needs a spark: {projector.Needed} minminis." };
 
             case "scarecrow":
                 if (Has(Flag.BeltTaken)) return new[] { "|The scarecrow looks less fashionable without his sash." };
@@ -437,7 +656,17 @@ public class Quests : NetworkBehaviour
                 break;
 
             default:
-                if (action.StartsWith("valve") && action.Length == 6)
+                if (action.StartsWith("mirror") && action.Length == 7)
+                {
+                    mirrorMask.Value ^= 1 << (action[6] - '0');
+                    AnnounceRpc("", "click");
+                }
+                else if (action.StartsWith("reel") && action.Length == 5)
+                {
+                    reelMask.Value |= 1 << (action[4] - '0');
+                    AnnounceRpc("", "pickup");
+                }
+                else if (action.StartsWith("valve") && action.Length == 6)
                 {
                     var times = valveShutsAt.Value;
                     times[action[5] - '0'] = Now + ValveSeconds;

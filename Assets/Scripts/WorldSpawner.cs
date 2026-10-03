@@ -15,6 +15,8 @@ public class WorldSpawner : MonoBehaviour
     [SerializeField] int minminiCount = 44;
     [SerializeField] NetworkObject bandicootPrefab;
     [SerializeField] Transform bandicootSpots;
+    [SerializeField] NetworkObject ghostPrefab;
+    [SerializeField] Transform ghostSpots;
 
     void Awake()
     {
@@ -42,6 +44,9 @@ public class WorldSpawner : MonoBehaviour
 
         foreach (Transform lair in bandicootSpots)
             Instantiate(bandicootPrefab, lair.position, Quaternion.identity).Spawn();
+
+        foreach (Transform haunt in ghostSpots)
+            Instantiate(ghostPrefab, haunt.position, Quaternion.identity).Spawn();
     }
 
     // Moves a minmini that has fed a lamp to a spot away from every player.

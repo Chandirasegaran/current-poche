@@ -81,6 +81,9 @@ public class StreetLight : NetworkBehaviour
 
     public void CancelReserve() => reserved--;
 
+    // Server: used when loading a saved game.
+    public void ForceLit() => charge.Value = needed;
+
     public void Deliver()
     {
         reserved--;
@@ -93,6 +96,7 @@ public class StreetLight : NetworkBehaviour
         if (now > before) Sfx.PlayAt("minmini", transform.position);
         if (before < needed && now >= needed)
         {
+            if (IsServer && Quests.Instance != null) Quests.Instance.Save();
             Sfx.PlayAt("lamp", transform.position);
             StartCoroutine(Flash());
         }
