@@ -1,0 +1,357 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.UI;
+
+// Everything drawn on top of the game: the title screen, the join code and
+// streetlight counter, dialogue boxes, hints and the pause menu.
+// The whole interface is built here in code and drawn on a tiny 216-pixel-tall
+// "screen" that is scaled up by a whole number, so it stays crisp like the art.
+public class GameUI : MonoBehaviour
+{
+    public static GameUI Instance { get; private set; }
+
+    // True while the player should not be walking around.
+    public static bool BlocksInput => Instance != null && (Instance.dialogue.activeSelf || Instance.pause.activeSelf);
+
+    static readonly Color Yellow = new(1f, 0.86f, 0.42f);
+    static readonly Color Pale = new(0.82f, 0.86f, 0.98f);
+    static readonly Color Dim = new(0.5f, 0.55f, 0.72f);
+    static readonly Color Ink = new(0.16f, 0.1f, 0.06f);
+
+    static readonly string[] Intro =
+    {
+        "Radio|...and that is the end of the 46th over! Minnalpatti need 34 runs off 24 balls, and the whole district is watchi--",
+        "Radio|*click*",
+        "The whole street|CURRENT POCHU!!",
+        "Paati|Aiyo. Right in the last overs. Kanna, take the torch and go see what that Murugesan has done now.",
+    };
+
+    static readonly string[] Ending =
+    {
+        "Lineman Murugesan|Look at that! Every streetlight in the ward is glowing. You did in one night what I couldn't do in a week.",
+        "Lineman Murugesan|But the houses are still dark. The main line is dead, and it runs east, through the paddy fields...",
+        "Lineman Murugesan|Get some rest. Tomorrow we follow the wires.   (Chapter 2 is coming soon.)",
+    };
+
+    CanvasScaler scaler;
+    GameObject title, hud, dialogue, pause, toast;
+    Button hostButton, joinButton;
+    PixelLabel statusLabel, codeEntryLabel, codeLabel, playersLabel, lightsLabel, hintLabel, toastLabel;
+    PixelLabel speakerLabel, lineLabel, moreLabel;
+    Image bulbIcon;
+    Sprite bulbOn, bulbOff;
+
+    string codeEntry = "";
+    readonly Queue<string> lines = new();
+    string currentLine = "";
+    float revealed, toastTimer;
+    string afterDialogueToast;
+    bool introShown, celebrated;
+
+    void Awake()
+    {
+        Instance = this;
+        Build();
+    }
+
+    void OnEnable()
+    {
+        if (Keyboard.current != null) Keyboard.current.onTextInput += OnTextInput;
+    }
+
+    void OnDisable()
+    {
+        if (Keyboard.current != null) Keyboard.current.onTextInput -= OnTextInput;
+    }
+
+    // ------------------------------------------------------------ every frame
+
+    void Update()
+    {
+        scaler.scaleFactor = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 216f));
+
+        var sessions = SessionManager.Instance;
+        bool inGame = sessions != null && sessions.Session != null;
+        title.SetActive(!inGame);
+        hud.SetActive(inGame);
+
+        if (inGame) UpdateGame(sessions);
+        else UpdateTitle(sessions);
+    }
+
+    void UpdateTitle(SessionManager sessions)
+    {
+        introShown = celebrated = false;
+        dialogue.SetActive(false);
+        pause.SetActive(false);
+        lines.Clear();
+
+        bool usable = sessions != null && sessions.Ready && !sessions.Busy;
+        hostButton.interactable = usable;
+        joinButton.interactable = usable && codeEntry.Length > 0;
+        statusLabel.Text = sessions != null ? sessions.Status : "";
+
+        bool blink = Time.unscaledTime % 1f < 0.5f;
+        codeEntryLabel.Text = codeEntry.Length == 0 && !blink ? "CODE" : codeEntry + (blink ? "_" : " ");
+        codeEntryLabel.Colour = codeEntry.Length == 0 ? Dim : Yellow;
+
+        var keyboard = Keyboard.current;
+        if (keyboard == null || !usable) return;
+        if (keyboard.backspaceKey.wasPressedThisFrame && codeEntry.Length > 0)
+            codeEntry = codeEntry[..^1];
+        if (keyboard.enterKey.wasPressedThisFrame && codeEntry.Length > 0)
+            _ = sessions.Join(codeEntry);
+    }
+
+    void OnTextInput(char typed)
+    {
+        if (!title.activeSelf || codeEntry.Length >= 8 || !char.IsLetterOrDigit(typed)) return;
+        codeEntry += char.ToUpperInvariant(typed);
+    }
+
+    void UpdateGame(SessionManager sessions)
+    {
+        var session = sessions.Session;
+        codeLabel.Text = session.Code;
+        playersLabel.Text = $"{session.PlayerCount} of {session.MaxPlayers} players";
+
+        int lit = 0;
+        foreach (var lamp in StreetLight.All)
+            if (lamp.IsLit) lit++;
+        int total = StreetLight.All.Count;
+        lightsLabel.Text = $"{lit} / {total}";
+        bulbIcon.sprite = lit > 0 ? bulbOn : bulbOff;
+
+        var player = PlayerController.Local;
+        var keyboard = Keyboard.current;
+        if (player == null || keyboard == null) return;
+
+        if (!introShown)
+        {
+            introShown = true;
+            Say(Intro);
+            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.";
+        }
+        else if (!celebrated && total > 0 && lit == total && !dialogue.activeSelf)
+        {
+            celebrated = true;
+            Say(Ending);
+        }
+
+        if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf)
+            pause.SetActive(!pause.activeSelf);
+
+        bool confirm = keyboard.eKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame ||
+                       keyboard.enterKey.wasPressedThisFrame;
+        bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+
+        if (dialogue.activeSelf) UpdateDialogue(confirm || click);
+        else if (confirm && !pause.activeSelf && player.Nearby != null) Say(player.Nearby.lines);
+
+        var nearby = dialogue.activeSelf || pause.activeSelf ? null : player.Nearby;
+        hintLabel.gameObject.SetActive(nearby != null);
+        if (nearby != null) hintLabel.Text = $"[E] {nearby.verb}";
+
+        if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    // ------------------------------------------------------------ dialogue
+
+    // Each line is "Speaker|What they say".
+    public void Say(IEnumerable<string> script)
+    {
+        foreach (string line in script) lines.Enqueue(line);
+        if (!dialogue.activeSelf) NextLine();
+    }
+
+    public void Toast(string message, float seconds = 7f)
+    {
+        toastLabel.Text = message;
+        toastTimer = seconds;
+        toast.SetActive(true);
+    }
+
+    void NextLine()
+    {
+        if (lines.Count == 0)
+        {
+            dialogue.SetActive(false);
+            if (afterDialogueToast != null) Toast(afterDialogueToast);
+            afterDialogueToast = null;
+            return;
+        }
+
+        string[] parts = lines.Dequeue().Split('|');
+        speakerLabel.Text = parts.Length > 1 ? parts[0] : "";
+        currentLine = parts[^1];
+        revealed = 0f;
+        lineLabel.Text = "";
+        dialogue.SetActive(true);
+    }
+
+    void UpdateDialogue(bool confirm)
+    {
+        // Letters appear one by one; pressing E finishes the line, then moves on.
+        bool finished = revealed >= currentLine.Length;
+        if (confirm && finished) { NextLine(); return; }
+        if (confirm) revealed = currentLine.Length;
+
+        revealed = Mathf.Min(currentLine.Length, revealed + Time.deltaTime * 55f);
+        lineLabel.Text = currentLine[..(int)revealed];
+        moreLabel.gameObject.SetActive(revealed >= currentLine.Length && Time.unscaledTime % 0.8f < 0.5f);
+    }
+
+    // ------------------------------------------------------------ building the interface
+
+    void Build()
+    {
+        if (FindFirstObjectByType<EventSystem>() == null)
+        {
+            var events = new GameObject("EventSystem", typeof(EventSystem));
+            events.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
+        }
+
+        var canvasObject = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        canvasObject.transform.SetParent(transform, false);
+        canvasObject.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+        scaler = canvasObject.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+        scaler.referencePixelsPerUnit = 16;
+        var canvas = canvasObject.transform;
+
+        bulbOn = Resources.Load<Sprite>("UI/bulb_on");
+        bulbOff = Resources.Load<Sprite>("UI/bulb_off");
+        var top = new Vector2(0.5f, 1f);
+        var topLeft = new Vector2(0f, 1f);
+        var topRight = new Vector2(1f, 1f);
+        var bottom = new Vector2(0.5f, 0f);
+        var centre = new Vector2(0.5f, 0.5f);
+
+        // ---- title screen
+        title = Group(canvas, "Title");
+        var shade = Box(title.transform, null, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+        shade.rectTransform.anchorMax = Vector2.one;
+        shade.color = new Color(0.02f, 0.03f, 0.09f, 0.5f);
+
+        var logo = Box(title.transform, "logo", top, top, new Vector2(0, -8), Vector2.zero);
+        ActualSize(logo);
+        Label(title.transform, "a power-cut adventure for 1 to 4 friends", top, top, new Vector2(0, -92), Pale);
+
+        hostButton = MakeButton(title.transform, "HOST A GAME", top, new Vector2(0, -112), new Vector2(136, 24),
+            () => _ = SessionManager.Instance.Host());
+        Label(title.transform, "or join a friend with their code", top, top, new Vector2(0, -142), Dim);
+        var field = Box(title.transform, "field_9s", top, top, new Vector2(-29, -157), new Vector2(78, 24));
+        codeEntryLabel = Label(field.transform, "CODE", centre, centre, new Vector2(0, -1), Dim);
+        joinButton = MakeButton(title.transform, "JOIN", top, new Vector2(41, -157), new Vector2(54, 24),
+            () => _ = SessionManager.Instance.Join(codeEntry));
+        statusLabel = Label(title.transform, "", top, top, new Vector2(0, -186), Yellow);
+        Label(title.transform, "Segar Games", bottom, bottom, new Vector2(0, 3), Dim);
+
+        // ---- in-game heads-up display
+        hud = Group(canvas, "HUD");
+        var codePanel = Box(hud.transform, "panel_9s", topLeft, topLeft, new Vector2(6, -6), new Vector2(114, 36));
+        Label(codePanel.transform, "CODE", topLeft, topLeft, new Vector2(8, -4), Dim);
+        codeLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(44, -4), Yellow);
+        playersLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(8, -18), Pale);
+
+        var lightsPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -6), new Vector2(66, 22));
+        bulbIcon = Box(lightsPanel.transform, "bulb_off", topLeft, topLeft, new Vector2(7, -4), Vector2.zero);
+        ActualSize(bulbIcon);
+        lightsLabel = Label(lightsPanel.transform, "", topLeft, topLeft, new Vector2(24, -4), Pale);
+
+        hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 70), Yellow);
+
+        toast = Box(hud.transform, "panel_9s", top, top, new Vector2(0, -46), new Vector2(280, 36)).gameObject;
+        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale);
+        toast.SetActive(false);
+
+        dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(340, 60)).gameObject;
+        speakerLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -5), Yellow);
+        lineLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -19), Pale, 320);
+        moreLabel = Label(dialogue.transform, ">", Vector2.right, Vector2.right, new Vector2(-8, 4), Yellow);
+        dialogue.SetActive(false);
+
+        pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 88)).gameObject;
+        Label(pause.transform, "PAUSED", top, top, new Vector2(0, -8), Yellow);
+        MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 24), () => pause.SetActive(false));
+        MakeButton(pause.transform, "LEAVE GAME", top, new Vector2(0, -54), new Vector2(120, 24),
+            () => _ = SessionManager.Instance.Leave());
+        pause.SetActive(false);
+    }
+
+    static GameObject Group(Transform parent, string name)
+    {
+        var rect = new GameObject(name, typeof(RectTransform)).GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        return rect.gameObject;
+    }
+
+    // Shows a picture at one screen pixel per art pixel, unstretched.
+    static void ActualSize(Image image)
+    {
+        image.type = Image.Type.Simple;
+        image.rectTransform.sizeDelta = image.sprite.rect.size;
+    }
+
+    static void Place(RectTransform rect, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 position)
+    {
+        rect.SetParent(parent, false);
+        rect.anchorMin = rect.anchorMax = anchor;
+        rect.pivot = pivot;
+        rect.anchoredPosition = position;
+    }
+
+    // A picture or stretchy panel. A null sprite gives a plain coloured rectangle.
+    static Image Box(Transform parent, string sprite, Vector2 anchor, Vector2 pivot, Vector2 position, Vector2 size)
+    {
+        var image = new GameObject(sprite ?? "Shade", typeof(Image)).GetComponent<Image>();
+        Place(image.rectTransform, parent, anchor, pivot, position);
+        image.rectTransform.sizeDelta = size;
+        if (sprite != null)
+        {
+            image.sprite = Resources.Load<Sprite>("UI/" + sprite);
+            image.type = Image.Type.Sliced;
+        }
+        image.raycastTarget = false;
+        return image;
+    }
+
+    static PixelLabel Label(Transform parent, string text, Vector2 anchor, Vector2 pivot, Vector2 position,
+        Color colour, int wrapWidth = 0)
+    {
+        var label = new GameObject("Label", typeof(RawImage)).AddComponent<PixelLabel>();
+        label.GetComponent<RawImage>().raycastTarget = false;
+        Place((RectTransform)label.transform, parent, anchor, pivot, position);
+        label.wrapWidth = wrapWidth;
+        label.Colour = colour;
+        label.Text = text;
+        return label;
+    }
+
+    static Button MakeButton(Transform parent, string text, Vector2 anchor, Vector2 position, Vector2 size,
+        UnityEngine.Events.UnityAction onClick)
+    {
+        var image = Box(parent, "button_9s", anchor, new Vector2(0.5f, 1f), position, size);
+        image.raycastTarget = true;
+        var button = image.gameObject.AddComponent<Button>();
+        button.targetGraphic = image;
+        var colours = button.colors;
+        colours.highlightedColor = new Color(1f, 0.95f, 0.8f);
+        colours.pressedColor = new Color(0.8f, 0.7f, 0.5f);
+        colours.selectedColor = Color.white;
+        colours.disabledColor = new Color(0.55f, 0.55f, 0.6f, 0.7f);
+        colours.fadeDuration = 0.05f;
+        button.colors = colours;
+        button.onClick.AddListener(onClick);
+
+        var half = new Vector2(0.5f, 0.5f);
+        Label(image.transform, text, half, half, new Vector2(0, 0), Ink);
+        return button;
+    }
+}
