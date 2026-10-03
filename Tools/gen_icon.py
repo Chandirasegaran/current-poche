@@ -58,5 +58,15 @@ img.putalpha(mask)
 big = img.resize((256, 256), Image.NEAREST)
 big.save("Assets/Art/UI/icon.png")
 big.save("Packaging/currentpochu.png")
+
+# Android adaptive icon layers: a plain background, and the picture with a
+# margin around it so the launcher can crop it to a circle or squircle.
+square = img.copy()
+square.putalpha(255)
+layer = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
+layer.alpha_composite(square.resize((288, 288), Image.NEAREST), (72, 72))
+layer.save("Assets/Art/UI/icon_foreground.png")
+Image.new("RGBA", (432, 432), (17, 22, 46, 255)).save("Assets/Art/UI/icon_background.png")
+
 big.save("Packaging/currentpochu.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 print("icon written")

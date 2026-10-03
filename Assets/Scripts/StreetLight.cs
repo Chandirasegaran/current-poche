@@ -96,7 +96,7 @@ public class StreetLight : NetworkBehaviour
         if (now > before) Sfx.PlayAt("minmini", transform.position);
         if (before < needed && now >= needed)
         {
-            if (IsServer && Quests.Instance != null) Quests.Instance.Save();
+            if (Quests.Instance != null) Quests.Instance.Save();
             Sfx.PlayAt("lamp", transform.position);
             StartCoroutine(Flash());
         }

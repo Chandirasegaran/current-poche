@@ -242,9 +242,18 @@ public class Quests : NetworkBehaviour
     static string Key(StreetLight lamp) =>
         $"{Mathf.RoundToInt(lamp.transform.position.x * 10)},{Mathf.RoundToInt(lamp.transform.position.y * 10)}";
 
+    // How far along a saved story is, so two saves can be compared.
+    static int Progress(SaveData data) =>
+        Bits(data.flags, 31) + Bits(data.ballMask, 31) + Bits(data.reelMask, 31) + Bits(data.lanternMask, 31)
+        + Bits(data.brakeMask, 31) + data.lit.Count;
+
+    // Everyone in the game keeps a copy of the story, not only the host, so
+    // whoever hosts next time can carry on from where the group left off.
+    // A guest's copy is only replaced if the game they are in is at least as
+    // far along as what they already had.
     public void Save()
     {
-        if (!IsSpawned || !IsServer || loading) return;
+        if (!IsSpawned || loading) return;
         var data = new SaveData
         {
             flags = flags.Value, ballMask = ballMask.Value, fuses = fuses.Value,
@@ -253,6 +262,15 @@ public class Quests : NetworkBehaviour
         };
         foreach (var lamp in StreetLight.Feedable)
             if (lamp.IsLit) data.lit.Add(Key(lamp));
+        if (!IsServer && HasSave)
+        {
+            try
+            {
+                var mine = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
+                if (mine != null && Progress(mine) > Progress(data)) return;
+            }
+            catch (Exception e) { Debug.LogException(e); }
+        }
         File.WriteAllText(SavePath, JsonUtility.ToJson(data));
     }
 
@@ -339,10 +357,11 @@ public class Quests : NetworkBehaviour
             valveShutsAt.Value = Vector3.zero;
             reelMask.Value = mirrorMask.Value = lanternMask.Value = leverMask.Value = brakeMask.Value = 0;
             StartCoroutine(Load());
-            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
-                counter.OnValueChanged += OnCounterChanged;
         }
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
+            counter.OnValueChanged += OnCounterChanged;
         flags.OnValueChanged += OnFlagsChanged;
+        if (!IsServer) StartCoroutine(SaveWhenJoined());
     }
 
     public override void OnNetworkDespawn()
@@ -353,6 +372,13 @@ public class Quests : NetworkBehaviour
     }
 
     void OnCounterChanged(int before, int now) => Save();
+
+    // A guest copies the host's story a moment after joining, once the lamps have arrived.
+    IEnumerator SaveWhenJoined()
+    {
+        yield return new WaitForSeconds(2f);
+        Save();
+    }
 
     void OnFlagsChanged(int before, int now)
     {

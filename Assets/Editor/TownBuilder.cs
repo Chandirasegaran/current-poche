@@ -182,14 +182,14 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
-        PlayerSettings.bundleVersion = "0.4.0";
+        PlayerSettings.bundleVersion = "0.4.1";
 
         // Android: package name, landscape only, 64-bit (which needs IL2CPP).
         var android = UnityEditor.Build.NamedBuildTarget.Android;
         PlayerSettings.SetApplicationIdentifier(android, "com.segar.currentpochu");
         PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
-        PlayerSettings.Android.bundleVersionCode = 4;
+        PlayerSettings.Android.bundleVersionCode = 5;
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
         PlayerSettings.allowedAutorotateToLandscapeLeft = PlayerSettings.allowedAutorotateToLandscapeRight = true;
         PlayerSettings.allowedAutorotateToPortrait = PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
@@ -199,6 +199,22 @@ public static class TownBuilder
         PlayerSettings.WebGL.decompressionFallback = true;
         var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
         PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
+
+        // Android has its own icon slots. Adaptive icons are made of two layers:
+        // a plain background and the picture on top, with room to be cropped round.
+        var back = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon_background.png");
+        var front = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon_foreground.png");
+        var androidTarget = UnityEditor.Build.NamedBuildTarget.Android;
+        foreach (var kind in PlayerSettings.GetSupportedIconKinds(androidTarget))
+        {
+            var slots = PlayerSettings.GetPlatformIcons(androidTarget, kind);
+            foreach (var slot in slots)
+            {
+                if (slot.maxLayerCount >= 2) slot.SetTextures(back, front);
+                else slot.SetTexture(icon);
+            }
+            PlayerSettings.SetPlatformIcons(androidTarget, kind, slots);
+        }
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
         PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow; // fullscreen unless turned off in settings
         PlayerSettings.defaultIsNativeResolution = true;

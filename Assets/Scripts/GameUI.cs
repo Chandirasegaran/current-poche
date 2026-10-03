@@ -69,16 +69,6 @@ public class GameUI : MonoBehaviour
         TouchInput.Active = Application.isMobilePlatform;
     }
 
-    void OnEnable()
-    {
-        if (Keyboard.current != null) Keyboard.current.onTextInput += OnTextInput;
-    }
-
-    void OnDisable()
-    {
-        if (Keyboard.current != null) Keyboard.current.onTextInput -= OnTextInput;
-    }
-
     // ------------------------------------------------------------ every frame
 
     void Update()
@@ -141,24 +131,35 @@ public class GameUI : MonoBehaviour
             if (softKeyboard.status != TouchScreenKeyboard.Status.Visible) softKeyboard = null;
         }
 
-        if (!usable) return;
+        if (!usable || settings.activeSelf || credits.activeSelf) return;
+        if (Keyboard.current != null && softKeyboard == null) TypeCode(Keyboard.current);
         if (Controls.Tapped(Key.Backspace) && codeEntry.Length > 0)
             codeEntry = codeEntry[..^1];
         if (Controls.Tapped(Key.Enter) && codeEntry.Length > 0)
             _ = sessions.Join(codeEntry);
     }
 
-    void OnTextInput(char typed)
+    // Reads the join code straight from the keys that went down this frame.
+    // (Letters and digits only; the code box takes up to 8 characters.)
+    void TypeCode(Keyboard keyboard)
     {
-        if (!title.activeSelf || codeEntry.Length >= 8 || !char.IsLetterOrDigit(typed)) return;
-        codeEntry += char.ToUpperInvariant(typed);
+        foreach (var key in keyboard.allKeys)
+        {
+            if (key == null || !key.wasPressedThisFrame || codeEntry.Length >= 8) continue;
+            Key code = key.keyCode;
+            if (code >= Key.A && code <= Key.Z) codeEntry += (char)('A' + (code - Key.A));
+            else if (code >= Key.Digit1 && code <= Key.Digit9) codeEntry += (char)('1' + (code - Key.Digit1));
+            else if (code >= Key.Numpad1 && code <= Key.Numpad9) codeEntry += (char)('1' + (code - Key.Numpad1));
+            else if (code == Key.Digit0 || code == Key.Numpad0) codeEntry += '0';
+        }
     }
 
     void UpdateGame(SessionManager sessions)
     {
         var session = sessions.Session;
         codeLabel.Text = session != null ? session.Code : "SOLO";
-        playersLabel.Text = session != null ? $"{session.PlayerCount} of {session.MaxPlayers} players" : "Esc: menu";
+        playersLabel.Text = session != null ? $"{session.PlayerCount} of {session.MaxPlayers} players"
+            : TouchInput.Active ? "saved here" : "Esc: menu";
 
         int lit = 0;
         foreach (var lamp in StreetLight.All)
@@ -273,9 +274,9 @@ public class GameUI : MonoBehaviour
         var right = Vector2.right;
         TouchButton("USE", right, new Vector2(-40, 62), new Vector2(56, 34), () => TouchInput.Use = true);
         TouchButton("DOG", right, new Vector2(-96, 40), new Vector2(46, 24), () => TouchInput.Whistle = true);
-        var edge = new Vector2(1f, 0.5f);
-        TouchButton("MENU", edge, new Vector2(-28, 16), new Vector2(46, 20), () => pause.SetActive(true));
-        TouchButton("TASKS", edge, new Vector2(-28, -10), new Vector2(46, 20), () => showTasks = !showTasks);
+        var edge = new Vector2(0f, 0.5f); // left edge, clear of the task list on the right
+        TouchButton("MENU", edge, new Vector2(28, 16), new Vector2(46, 20), () => pause.SetActive(true));
+        TouchButton("TASKS", edge, new Vector2(28, -10), new Vector2(46, 20), () => showTasks = !showTasks);
         touchControls.SetActive(false);
     }
 
