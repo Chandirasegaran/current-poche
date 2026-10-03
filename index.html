@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <title>Current Pochu!</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0d1c; overflow: hidden; }
+    #unity-canvas { display: block; width: 100vw; height: 100vh; background: #0b0d1c; }
+    #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+               justify-content: center; color: #ffdb6b; font: 16px monospace; gap: 12px; }
+    #bar { width: 240px; height: 10px; border: 2px solid #4a5aa8; }
+    #fill { height: 100%; width: 0; background: #f2b33d; }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loading"><div>CURRENT POCHU!</div><div id="bar"><div id="fill"></div></div></div>
+  <script src="Build/WebGL.loader.js"></script>
+  <script>
+    // The game fills the whole window and follows it when it is resized.
+    createUnityInstance(document.querySelector("#unity-canvas"), {
+      dataUrl: "Build/WebGL.data.unityweb",
+      frameworkUrl: "Build/WebGL.framework.js.unityweb",
+      codeUrl: "Build/WebGL.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "Segar Games",
+      productName: "Current Pochu!",
+      productVersion: "0.4.0",
+      autoSyncPersistentDataPath: true,
+    }, (progress) => {
+      document.querySelector("#fill").style.width = Math.round(progress * 100) + "%";
+    }).then(() => {
+      document.querySelector("#loading").remove();
+    }).catch((message) => {
+      document.querySelector("#loading").textContent = "Could not start the game: " + message;
+    });
+  </script>
+</body>
+</html>
