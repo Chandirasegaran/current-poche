@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-3620156757737978847
+--- !u!114 &-7950780829518203802
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -50,7 +50,7 @@ MonoBehaviour:
   dirtIntensity:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &-1366695408433891940
+--- !u!114 &-3279598056407026208
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -91,10 +91,10 @@ MonoBehaviour:
   m_Name: NightProfile
   m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.VolumeProfile
   components:
-  - {fileID: -3620156757737978847}
-  - {fileID: -1366695408433891940}
-  - {fileID: 8959873459886205642}
---- !u!114 &8959873459886205642
+  - {fileID: -7950780829518203802}
+  - {fileID: -3279598056407026208}
+  - {fileID: 2727491936088791212}
+--- !u!114 &2727491936088791212
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}

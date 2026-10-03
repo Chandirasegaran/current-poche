@@ -21,7 +21,7 @@ public class Train : NetworkBehaviour
         if (!IsSpawned || !IsServer || Quests.Instance.YardDone) return;
 
         var position = transform.position;
-        position.x += direction * speed * Time.deltaTime;
+        position.x += direction * speed * Quests.Hazard * Time.deltaTime;
         if (position.x > eastEnd) direction = -1f;
         if (position.x < westEnd) direction = 1f;
         transform.position = position;

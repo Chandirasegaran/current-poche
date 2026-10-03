@@ -1169,6 +1169,82 @@ def make_extras_art():
     save(small(["bbbbbbb", "bgggbob", "bgggbbb", "bbbbbbb"], {"b": "#6b4c33", "g": "#d9cdb0", "o": "#17131f"}), "Items", "radio.png")
 
 
+# ---------------------------------------------------------------- more variety for the town
+
+def house_tall(seed, wall_hex, door_hex):
+    """A two-storey house with a balcony. The ground floor matches the small houses."""
+    from gen_art import house
+    ground = house(seed, wall_hex, door_hex)
+    w, h = 64, 90
+    img = Image.new("RGBA", (w, h), CLEAR)
+    img.alpha_composite(ground.crop((0, 18, 64, 60)), (0, 48))  # ground floor, without its roof
+    d = ImageDraw.Draw(img)
+    wall = rgb(wall_hex)
+    d.rectangle([2, 16, 61, 48], fill=shade(wall, 1.06), outline=OUTLINE)
+    d.rectangle([3, 17, 60, 21], fill=shade(wall, 0.72))
+    for x0 in (8, 45):  # upstairs windows
+        d.rectangle([x0, 24, x0 + 11, 36], fill=rgb("#141726"), outline=OUTLINE)
+        d.line([x0 + 5, 25, x0 + 5, 35], fill=rgb("#7f8491"))
+    d.rectangle([26, 22, 37, 44], fill=shade(rgb(door_hex), 0.7), outline=OUTLINE)  # balcony door
+    d.rectangle([4, 40, 59, 41], fill=rgb("#c9cdd6"))  # balcony rail
+    for x in range(5, 60, 4):
+        d.line([x, 41, x, 47], fill=rgb("#8b93a1"))
+    d.rectangle([0, 46, 63, 49], fill=shade(wall, 0.8), outline=OUTLINE)
+    img.alpha_composite(ground.crop((0, 0, 64, 18)), (0, 0))  # the tiled roof on top
+    return img
+
+
+def haystack():
+    rnd = random.Random(12)
+    img = Image.new("RGBA", (30, 26), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.ellipse([1, 2, 28, 40], fill=rgb("#d9b24a"))
+    img = img.crop((0, 0, 30, 26))
+    px = img.load()
+    for _ in range(90):
+        x, y = rnd.randrange(30), rnd.randrange(26)
+        if px[x, y][3]:
+            px[x, y] = rgb(rnd.choice(["#c29a3a", "#e8c765", "#b98a2e"]))
+    return outlined(img)
+
+
+def flower_pot(seed):
+    rnd = random.Random(seed)
+    img = Image.new("RGBA", (10, 14), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.polygon([(1, 8), (8, 8), (7, 13), (2, 13)], fill=rgb("#b4553b"))
+    d.rectangle([1, 7, 8, 8], fill=rgb("#d9734f"))
+    for _ in range(10):
+        img.putpixel((rnd.randrange(1, 9), rnd.randrange(1, 7)), rgb(rnd.choice(["#3c8a44", "#57a84f", "#2c6a37"])))
+    img.putpixel((rnd.randrange(2, 8), 1), rgb(rnd.choice(["#f0b7c8", "#f2e6a0", "#ff8a5a"])))
+    return outlined(img)
+
+
+def cow():
+    img = Image.new("RGBA", (34, 20), CLEAR)
+    d = ImageDraw.Draw(img)
+    hide = rgb("#f3ead7")
+    d.ellipse([2, 6, 26, 18], fill=hide)
+    d.ellipse([8, 8, 14, 13], fill=rgb("#6b4c33"))
+    d.ellipse([17, 11, 22, 16], fill=rgb("#6b4c33"))
+    d.rectangle([24, 4, 31, 11], fill=hide)
+    d.rectangle([29, 8, 32, 11], fill=rgb("#e5b8a8"))
+    img.putpixel((28, 6), rgb("#17131f"))
+    d.line([24, 3, 25, 1], fill=rgb("#c9cdd6"))
+    d.line([29, 3, 30, 1], fill=rgb("#c9cdd6"))
+    d.line([2, 10, 0, 14], fill=hide)
+    return outlined(img)
+
+
+def make_variety_art():
+    for i, (wall, door) in enumerate([("#f2a65e", "#5b3a24"), ("#b9a3e0", "#6a4226")]):
+        save(house_tall(520 + i, wall, door), "Props", f"house_tall_{i}.png")
+    save(haystack(), "Props", "haystack.png")
+    for i in range(3):
+        save(flower_pot(30 + i), "Props", f"pot_{i}.png")
+    save(cow(), "Props", "cow.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -1180,3 +1256,4 @@ def main():
     make_yard_art()
     make_hills_art()
     make_extras_art()
+    make_variety_art()

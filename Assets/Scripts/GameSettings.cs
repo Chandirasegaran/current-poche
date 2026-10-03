@@ -29,6 +29,14 @@ public static class GameSettings
         }
     }
 
+    // Relaxed gives longer timers and slower hazards. In an online game the
+    // host's choice applies to everyone.
+    public static bool Relaxed
+    {
+        get => PlayerPrefs.GetInt("relaxed", 1) == 1;
+        set { PlayerPrefs.SetInt("relaxed", value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     public static void Apply()
     {
         Sfx.SetVolumes(Music, Sound);

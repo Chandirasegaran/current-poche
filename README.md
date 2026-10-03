@@ -13,8 +13,9 @@ Download an installer from the [Releases](https://github.com/Chandirasegaran/cur
 - Move with WASD or the arrow keys. E talks, picks up, uses and throws things (Space, Enter
   or a click also continue dialogue). Q whistles to Battery the dog: stay, or come. Tab
   hides the task list. Esc opens the menu. F11 switches between fullscreen and a window.
-- **Settings** (title screen or Esc menu): music and sound volume, fullscreen, and every
-  key can be remapped.
+- **Settings** (title screen or Esc menu): music and sound volume, fullscreen, difficulty,
+  and every key can be remapped. **Relaxed** difficulty (the default) gives longer timers
+  and slower hazards than **Normal**; in an online game the host's choice applies.
 
 ## The story, chapter by chapter
 

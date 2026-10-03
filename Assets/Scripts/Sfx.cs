@@ -15,15 +15,40 @@ public static class Sfx
         var go = new GameObject("Audio");
         Object.DontDestroyOnLoad(go);
         effects = go.AddComponent<AudioSource>();
-        music = Loop(go, "music", 0.3f);
+        music = Loop(go, "music_town", 0.3f);
         ambience = Loop(go, "ambience", 0.45f);
         GameSettings.Apply();
+    }
+
+    static string track = "music_town", wanted = "music_town";
+    static float fade = 1f, musicLevelNow = 0.7f;
+
+    // Ask for a different piece of music. It fades over about a second.
+    public static void SetTrack(string name) => wanted = name;
+
+    // Called every frame to carry out the fade between pieces of music.
+    public static void Tick()
+    {
+        if (music == null) return;
+        if (wanted != track)
+        {
+            fade -= Time.unscaledDeltaTime * 1.5f;
+            if (fade <= 0f)
+            {
+                track = wanted;
+                music.clip = Clip(track);
+                music.Play();
+            }
+        }
+        else fade = Mathf.Min(1f, fade + Time.unscaledDeltaTime * 1.5f);
+        music.volume = 0.42f * musicLevelNow * Mathf.Clamp01(fade);
     }
 
     // Both run from 0 (silent) to 1 (full).
     public static void SetVolumes(float musicLevel, float soundLevel)
     {
         if (effects == null) return;
+        musicLevelNow = musicLevel;
         music.volume = 0.42f * musicLevel;
         ambience.volume = 0.55f * soundLevel;
         effects.volume = soundLevel;

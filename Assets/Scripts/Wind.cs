@@ -31,6 +31,6 @@ public class Wind : MonoBehaviour
         if (!gusting || player == null) return;
         Vector2 local = player.transform.position - transform.position;
         if (Mathf.Abs(local.x) < size.x / 2f && Mathf.Abs(local.y) < size.y / 2f)
-            player.Push += push;
+            player.Push += push * Quests.Hazard;
     }
 }

@@ -104,12 +104,15 @@ The chapters as built are listed in [README.md](README.md). They follow this doc
 plan with simpler puzzles in places: Chapter 3 is an open-air cinema yard, Chapter 4 has
 levers rather than trolleys, and Chapters 5 and 6 share one region.
 
-Also built: settings (volume, fullscreen, key mapping), credits, three side-jobs, crates
-to carry and throw, Battery's stay command, street boards and installers.
+Also built: settings (volume, fullscreen, difficulty, key mapping), credits, quit buttons,
+three side-jobs, crates to carry and throw, Battery's stay command, street boards,
+walking animation in four directions, two-storey houses and extra props, a music track
+for each part of the world, and installers for Windows and Linux.
 
-Still to do:
+Nothing on the original list is left unbuilt. One thing remains that no amount of
+building can replace:
 
-- A real play-through by hand to tune difficulty (ice timer, valve timer, wind strength,
-  bandicoots, ghosts, trains)
-- An art pass (walking animations in four directions, more variety in houses and props)
-- More music: one track per chapter instead of one for the whole game
+- **Play-testing by people.** The timers and hazard speeds were chosen by calculation
+  (for example, the ice run is about 26 seconds of walking against a 40 second timer, or
+  60 on Relaxed). The Relaxed/Normal setting is there so players can adjust, but the
+  numbers should be revisited after real players have tried each chapter.

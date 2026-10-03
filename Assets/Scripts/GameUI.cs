@@ -34,7 +34,7 @@ public class GameUI : MonoBehaviour
     GameObject title, hud, dialogue, pause, toast;
     Button soloButton, hostButton, joinButton;
     GameObject eraseButton, settings, credits;
-    PixelLabel musicValue, soundValue, fullscreenValue;
+    PixelLabel musicValue, soundValue, fullscreenValue, difficultyValue;
     readonly PixelLabel[] keyLabels = new PixelLabel[Controls.Names.Length];
     int rebinding = -1; // which action is waiting for a key press, if any
     bool showTasks = true;
@@ -79,6 +79,13 @@ public class GameUI : MonoBehaviour
     void Update()
     {
         scaler.scaleFactor = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 216f));
+
+        // Each part of the world has its own music.
+        var here = PlayerController.Local != null ? (Vector2)PlayerController.Local.transform.position : Vector2.zero;
+        Sfx.SetTrack(here.x >= 66f ? "music_fields"
+            : here.x < -65f ? (here.y >= -5f ? "music_hills" : "music_yard")
+            : here.y >= 40f ? "music_cinema" : "music_town");
+        Sfx.Tick();
 
         var keys = Keyboard.current;
         if (keys != null && keys.f11Key.wasPressedThisFrame) GameSettings.Fullscreen = !GameSettings.Fullscreen;
@@ -208,6 +215,7 @@ public class GameUI : MonoBehaviour
         musicValue.Text = Mathf.RoundToInt(GameSettings.Music * 10) + " / 10";
         soundValue.Text = Mathf.RoundToInt(GameSettings.Sound * 10) + " / 10";
         fullscreenValue.Text = GameSettings.Fullscreen ? "ON" : "OFF";
+        difficultyValue.Text = GameSettings.Relaxed ? "RELAXED" : "NORMAL";
         for (int i = 0; i < keyLabels.Length; i++)
             keyLabels[i].Text = rebinding == i ? "press a key" : Controls.Label((GameAction)i);
 
@@ -229,7 +237,7 @@ public class GameUI : MonoBehaviour
         var topLeft = new Vector2(0f, 1f);
 
         settings = Backdrop(canvas, "Settings");
-        var panel = Box(settings.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(250, 208)).transform;
+        var panel = Box(settings.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(250, 212)).transform;
         Label(panel, "SETTINGS", top, top, new Vector2(0, -6), Yellow);
 
         PixelLabel Row(string name, float y, System.Action<int> change)
@@ -239,25 +247,30 @@ public class GameUI : MonoBehaviour
             MakeButton(panel, "+", topLeft, new Vector2(196, y + 2), new Vector2(18, 15), () => change(1));
             return Label(panel, "", topLeft, top, new Vector2(157, y), Yellow);
         }
-        musicValue = Row("Music", -24, step => GameSettings.Music += step * 0.1f);
-        soundValue = Row("Sound", -42, step => { GameSettings.Sound += step * 0.1f; Sfx.Play("pickup"); });
+        musicValue = Row("Music", -22, step => GameSettings.Music += step * 0.1f);
+        soundValue = Row("Sound", -38, step => { GameSettings.Sound += step * 0.1f; Sfx.Play("pickup"); });
 
-        Label(panel, "Fullscreen (F11)", topLeft, topLeft, new Vector2(14, -60), Pale);
-        var toggle = MakeButton(panel, "", topLeft, new Vector2(157, -58), new Vector2(60, 15),
+        Label(panel, "Fullscreen (F11)", topLeft, topLeft, new Vector2(14, -54), Pale);
+        var toggle = MakeButton(panel, "", topLeft, new Vector2(157, -52), new Vector2(96, 15),
             () => GameSettings.Fullscreen = !GameSettings.Fullscreen);
         fullscreenValue = toggle.GetComponentInChildren<PixelLabel>();
+
+        Label(panel, "Difficulty", topLeft, topLeft, new Vector2(14, -70), Pale);
+        var ease = MakeButton(panel, "", topLeft, new Vector2(157, -68), new Vector2(96, 15),
+            () => GameSettings.Relaxed = !GameSettings.Relaxed);
+        difficultyValue = ease.GetComponentInChildren<PixelLabel>();
 
         for (int i = 0; i < Controls.Names.Length; i++)
         {
             int action = i;
-            float y = -80 - i * 15;
+            float y = -88 - i * 14;
             Label(panel, Controls.Names[i], topLeft, topLeft, new Vector2(14, y), Pale);
-            var button = MakeButton(panel, "", topLeft, new Vector2(170, y + 2), new Vector2(86, 14), () => rebinding = action);
+            var button = MakeButton(panel, "", topLeft, new Vector2(170, y + 2), new Vector2(86, 13), () => rebinding = action);
             keyLabels[i] = button.GetComponentInChildren<PixelLabel>();
         }
 
-        MakeButton(panel, "RESET KEYS", top, new Vector2(-58, -187), new Vector2(104, 17), Controls.ResetAll);
-        MakeButton(panel, "BACK", top, new Vector2(58, -187), new Vector2(104, 17), () => settings.SetActive(false));
+        MakeButton(panel, "RESET KEYS", top, new Vector2(-58, -189), new Vector2(104, 17), Controls.ResetAll);
+        MakeButton(panel, "BACK", top, new Vector2(58, -189), new Vector2(104, 17), () => settings.SetActive(false));
         settings.SetActive(false);
 
         credits = Backdrop(canvas, "Credits");
@@ -281,7 +294,7 @@ public class GameUI : MonoBehaviour
             crate.UseRpc();
             return;
         }
-        if (target.verb == "Pet") Sfx.Play("bark", 0.8f);
+        if (target.GetComponent<Dog>() != null) Sfx.Play("bark", 0.8f);
         bool scripted = !string.IsNullOrEmpty(target.action) && Quests.Instance != null;
         var script = scripted ? Quests.Instance.Talk(target.action, player) : target.lines;
         if (script.Length > 0) Say(script);
@@ -387,6 +400,7 @@ public class GameUI : MonoBehaviour
         Label(title.transform, "Segar Games", bottom, bottom, new Vector2(0, 3), Dim);
         eraseButton = MakeButton(title.transform, "ERASE SAVE", Vector2.right, new Vector2(-58, 26), new Vector2(104, 20),
             Quests.EraseSave).gameObject;
+        MakeButton(title.transform, "QUIT", Vector2.right, new Vector2(-58, 50), new Vector2(104, 20), Application.Quit);
         MakeButton(title.transform, "SETTINGS", Vector2.zero, new Vector2(58, 50), new Vector2(104, 20), () => settings.SetActive(true));
         MakeButton(title.transform, "CREDITS", Vector2.zero, new Vector2(58, 26), new Vector2(104, 20), () => credits.SetActive(true));
 
@@ -406,7 +420,7 @@ public class GameUI : MonoBehaviour
         questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(6, -4), Pale, 0, true);
         iceLabel = Label(hud.transform, "", top, top, new Vector2(0, -8), new Color(0.6f, 0.9f, 1f));
 
-        hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 112), Yellow);
+        hintLabel = Label(hud.transform, "", top, top, new Vector2(0, -24), Yellow); // above the player, clear of the action
 
         toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 80), new Vector2(236, 36)).gameObject;
         toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 222, true);
@@ -418,7 +432,8 @@ public class GameUI : MonoBehaviour
         moreLabel = Label(dialogue.transform, ">", Vector2.right, Vector2.right, new Vector2(-8, 4), Yellow);
         dialogue.SetActive(false);
 
-        pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 112)).gameObject;
+        pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 138)).gameObject;
+        MakeButton(pause.transform, "QUIT GAME", top, new Vector2(0, -104), new Vector2(120, 22), Application.Quit);
         Label(pause.transform, "PAUSED", top, top, new Vector2(0, -8), Yellow);
         MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 22), () => pause.SetActive(false));
         MakeButton(pause.transform, "SETTINGS", top, new Vector2(0, -52), new Vector2(120, 22), () =>

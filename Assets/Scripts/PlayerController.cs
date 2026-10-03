@@ -13,9 +13,10 @@ public class PlayerController : NetworkBehaviour
     [Serializable]
     public class KidLook
     {
-        public Sprite idle;
-        public Sprite walk1;
-        public Sprite walk2;
+        // Facing the camera, facing away, and side-on (flipped for left).
+        public Sprite idle, walk1, walk2;
+        public Sprite upIdle, upWalk1, upWalk2;
+        public Sprite sideIdle, sideWalk1, sideWalk2;
     }
 
     [SerializeField] float moveSpeed = 4.5f;
@@ -161,18 +162,26 @@ public class PlayerController : NetworkBehaviour
         float speed = (transform.position - lastPosition).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
         lastPosition = transform.position;
 
+        // Pick the set of pictures for the way this player is facing.
+        var look2 = facing.Value;
+        bool sideways = Mathf.Abs(look2.x) > Mathf.Abs(look2.y);
+        bool away = !sideways && look2.y > 0f;
+        Sprite still = sideways ? kid.sideIdle : away ? kid.upIdle : kid.idle;
+        Sprite stepA = sideways ? kid.sideWalk1 : away ? kid.upWalk1 : kid.walk1;
+        Sprite stepB = sideways ? kid.sideWalk2 : away ? kid.upWalk2 : kid.walk2;
+
         if (speed > 0.3f)
         {
             walkClock += Time.deltaTime;
             int frame = (int)(walkClock / 0.14f) % 2;
-            body.sprite = frame == 0 ? kid.walk1 : kid.walk2;
+            body.sprite = frame == 0 ? stepA : stepB;
             if (frame != walkFrame && IsOwner) Sfx.Play("step", 0.45f);
             walkFrame = frame;
         }
         else
         {
             walkClock = 0f;
-            body.sprite = kid.idle;
+            body.sprite = still;
         }
 
         // Every side-job finished makes everyone's torch reach a little further.
@@ -182,7 +191,7 @@ public class PlayerController : NetworkBehaviour
         carryIcon.transform.localPosition = new Vector3(0f, 1.5f + Mathf.Sin(Time.time * 4f) * 0.05f, 0f);
 
         var direction = facing.Value;
-        if (Mathf.Abs(direction.x) > 0.01f) body.flipX = direction.x < 0;
+        body.flipX = sideways && direction.x < 0; // the side view is drawn facing right
 
         // The spotlight shines along its local "up", hence the -90.
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;

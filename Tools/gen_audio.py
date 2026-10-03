@@ -151,47 +151,58 @@ def ambience():
     save("ambience", out, 0.5)
 
 
-def music():
-    """A gentle looping night theme in Mohanam (the major pentatonic: C D E G A)."""
-    beat = 60 / 92
-    bars = 16
-    total = bars * 4 * beat
-    out = silence(total)
-    scale = ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"]
-    roots = ["C3", "C3", "A2", "A2", "F2", "F2", "G2", "G2"] * 2
+def music(name, seed, tempo, scale, roots, lead=0.42, pulse=None, shimmer=0.25):
+    """A looping theme. Each part of the world gets its own scale, speed and feel."""
+    beat = 60 / tempo
+    bars = len(roots)
+    out = silence(bars * 4 * beat)
 
     def soft(p):
         return 0.7 * triangle(p) + 0.3 * sine(p)
 
-    rnd = random.Random(7)
-    position = 5
+    rnd = random.Random(seed)
+    position = len(scale) // 2
     for bar in range(bars):
         start = bar * 4 * beat
         root = roots[bar]
-        # bass: root and fifth, slow
         add(out, tone(hz(root), beat * 1.9, sine, attack=0.02, release=0.4, volume=0.5), start)
         add(out, tone(hz(root) * 1.5, beat * 1.9, sine, attack=0.02, release=0.4, volume=0.35), start + 2 * beat)
-        # a soft tick on the off-beats, like a distant mridangam
-        for b in (1, 2.5, 3):
+        for b in (pulse or (1, 2.5, 3)):  # the rhythm
             add(out, noise(0.03, 0.12, 0.6, bar * 10 + int(b * 2)), start + b * beat)
-        # melody: a wandering line that mostly moves by step and rests now and then
         t = 0.0
         phrase_rest = bar % 4 == 3
         while t < 4:
-            length = rnd.choice([0.5, 0.5, 1, 1, 1.5, 2])
-            length = min(length, 4 - t)
+            length = min(rnd.choice([0.5, 0.5, 1, 1, 1.5, 2]), 4 - t)
             if not (phrase_rest and t >= 2) and rnd.random() > 0.12:
                 position = max(0, min(len(scale) - 1, position + rnd.choice([-2, -1, -1, 0, 1, 1, 2])))
-                add(out, tone(hz(scale[position]), length * beat * 0.95, soft, attack=0.01, release=0.18, volume=0.42),
+                add(out, tone(hz(scale[position]), length * beat * 0.95, soft, attack=0.01, release=0.18, volume=lead),
                     start + t * beat)
-                if rnd.random() < 0.25:  # an occasional sparkle an octave up
-                    add(out, bell(scale[position][0] + "6", 0.5, 0.12), start + t * beat)
+                if rnd.random() < shimmer:
+                    add(out, bell(scale[position][:-1] + "6", 0.5, 0.12), start + t * beat)
             t += length
-    save("music", out, 0.7)
+    save(name, out, 0.7)
+
+
+def all_music():
+    # The town: Mohanam, the major pentatonic. Gentle and a little hopeful.
+    music("music_town", 7, 92, ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"],
+          ["C3", "C3", "A2", "A2", "F2", "F2", "G2", "G2"] * 2)
+    # The fields: slower and wider, like wind over water.
+    music("music_fields", 11, 74, ["D4", "E4", "G4", "A4", "B4", "D5", "E5", "G5"],
+          ["G2", "G2", "E2", "E2", "C3", "C3", "D3", "D3"], shimmer=0.4)
+    # Raja Talkies: a minor scale, sparse and uneasy.
+    music("music_cinema", 23, 66, ["A3", "C4", "D4", "E4", "G4", "A4", "C5", "D5"],
+          ["A2", "A2", "F2", "F2", "D2", "D2", "E2", "E2"], lead=0.34, pulse=(2,), shimmer=0.1)
+    # The goods yard: a steady chug, like wheels on rails.
+    music("music_yard", 31, 112, ["D4", "F4", "G4", "A4", "C5", "D5", "F5", "G5"],
+          ["D2", "D2", "D2", "C2", "D2", "D2", "F2", "G2"], pulse=(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5), shimmer=0.05)
+    # The hills and the dam: Hamsadhwani, bright and rising, for the way home.
+    music("music_hills", 43, 100, ["C4", "D4", "E4", "G4", "B4", "C5", "D5", "E5", "G5", "B5"],
+          ["C3", "G2", "C3", "E2", "F2", "G2", "C3", "G2"] * 2, lead=0.46, shimmer=0.45)
 
 
 if __name__ == "__main__":
     effects()
     ambience()
-    music()
+    all_music()
     print("audio written to", OUT)

@@ -76,7 +76,7 @@ public class Bandicoot : NetworkBehaviour
                     state = State.Prowling;
                     break;
                 }
-                Move(prey.transform.position, 5f);
+                Move(prey.transform.position, 5f * Quests.Hazard); // slower than a player on Relaxed
                 if (Vector2.Distance(transform.position, prey.transform.position) < 0.6f)
                 {
                     Minmini.Scatter(prey);

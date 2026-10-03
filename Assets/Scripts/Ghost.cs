@@ -55,7 +55,7 @@ public class Ghost : NetworkBehaviour
 
         if (nearest != null && Vector3.Distance(nearest.transform.position, home) < 30f)
         {
-            Move(nearest.transform.position, 2.6f);
+            Move(nearest.transform.position, 2.6f * Quests.Hazard);
             if (closest < 0.7f)
             {
                 nearest.SpookRpc(Quests.Instance.SpookPoint,

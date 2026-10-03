@@ -339,15 +339,39 @@ MonoBehaviour:
   - idle: {fileID: 21300000, guid: eea46f597cf688068bac115335496f82, type: 3}
     walk1: {fileID: 21300000, guid: 99a007f07eaa5ac2181ea57957ba29b0, type: 3}
     walk2: {fileID: 21300000, guid: c5c49348eac3ac58fb19ed5c2f3498b5, type: 3}
+    upIdle: {fileID: 21300000, guid: 9d3e8d8b598e22636969266c8268015b, type: 3}
+    upWalk1: {fileID: 21300000, guid: 87d79aac8f24eebe5bbaee9366b4ef80, type: 3}
+    upWalk2: {fileID: 21300000, guid: cb5bd3981efdd501c9d62ac55d8bdf6a, type: 3}
+    sideIdle: {fileID: 21300000, guid: 8b5a5f5cda5494a9b9e034bc2c977c73, type: 3}
+    sideWalk1: {fileID: 21300000, guid: 7e2c77f598083cf8cb2752c535910205, type: 3}
+    sideWalk2: {fileID: 21300000, guid: a4981a1bf3095f22f80b4355bf1de850, type: 3}
   - idle: {fileID: 21300000, guid: 5aa280269dbfdcb2883d6a6308a764a7, type: 3}
     walk1: {fileID: 21300000, guid: f6a283952a10f6d149da35d148648845, type: 3}
     walk2: {fileID: 21300000, guid: 8257b7cc41f1c79a2aa31c92835eb6f3, type: 3}
+    upIdle: {fileID: 21300000, guid: 3f85558218529d2d4a93dfe3276ed12a, type: 3}
+    upWalk1: {fileID: 21300000, guid: 200ad002fac73eb3ea4520cea211161a, type: 3}
+    upWalk2: {fileID: 21300000, guid: 4b8b12ceb97a70cc19d3e5231b29f1b9, type: 3}
+    sideIdle: {fileID: 21300000, guid: cdba19e5fe1123918910e2e7b3885bc3, type: 3}
+    sideWalk1: {fileID: 21300000, guid: a3b09afe942cd96638d21b86eb485d8f, type: 3}
+    sideWalk2: {fileID: 21300000, guid: 540b28f567eb587d0be4bb63d6ccf126, type: 3}
   - idle: {fileID: 21300000, guid: 070c224dfd3041de482123b15a19a7e6, type: 3}
     walk1: {fileID: 21300000, guid: a5df99cade91ed1e0a597fa62a6dab0d, type: 3}
     walk2: {fileID: 21300000, guid: 2c29aa3bb24eaa2ab8d34247beafd227, type: 3}
+    upIdle: {fileID: 21300000, guid: 0c265104f7f972572b91df4869b3099a, type: 3}
+    upWalk1: {fileID: 21300000, guid: 60f4872415cfdeb079441b76cff85df4, type: 3}
+    upWalk2: {fileID: 21300000, guid: f79f55fc0bb9e3bacb3e246476e2b05a, type: 3}
+    sideIdle: {fileID: 21300000, guid: 86e6b60c435ecbeac9fe2a0067b6e504, type: 3}
+    sideWalk1: {fileID: 21300000, guid: b355ddbd13e910292ad58c586f39e763, type: 3}
+    sideWalk2: {fileID: 21300000, guid: f8c6b370f4a85599a83f5be59ca369c9, type: 3}
   - idle: {fileID: 21300000, guid: 37fbc95122ed761c898f100f973a681e, type: 3}
     walk1: {fileID: 21300000, guid: d1ff11113d5a87eecb344411647bd05c, type: 3}
     walk2: {fileID: 21300000, guid: de15a7b5c61370073b3cb634f1bf47be, type: 3}
+    upIdle: {fileID: 21300000, guid: b45d3d86abe971bf1b5ecb1722fa8058, type: 3}
+    upWalk1: {fileID: 21300000, guid: 54b478371c9e22439951322a08fc2926, type: 3}
+    upWalk2: {fileID: 21300000, guid: 4fd760b24b5f94809b0aa72b93790664, type: 3}
+    sideIdle: {fileID: 21300000, guid: 3e96902c494055c3f8642d3707362a83, type: 3}
+    sideWalk1: {fileID: 21300000, guid: 6f35d61bbe098852bae4d84c9ac0f1fe, type: 3}
+    sideWalk2: {fileID: 21300000, guid: f5006343af1c8555ca52e0bf064036ce, type: 3}
   torch: {fileID: 6508505236172818437}
   carryIcon: {fileID: 660227721602417987}
   itemSprites:
@@ -498,7 +522,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363315414761583
+    rid: 7806363315414761969
   m_FalloffIntensity: 0.65
   m_Color: {r: 1, g: 0.9, b: 0.75, a: 1}
   m_Intensity: 0.55
@@ -544,7 +568,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363315414761583
+    - rid: 7806363315414761969
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3
@@ -602,7 +626,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363315414761582
+    rid: 7806363315414761968
   m_FalloffIntensity: 0.6
   m_Color: {r: 1, g: 0.92, b: 0.72, a: 1}
   m_Intensity: 1.9
@@ -648,7 +672,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363315414761582
+    - rid: 7806363315414761968
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3

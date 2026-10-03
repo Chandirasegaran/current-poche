@@ -182,7 +182,7 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
-        PlayerSettings.bundleVersion = "0.2.0";
+        PlayerSettings.bundleVersion = "0.3.0";
         var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
         PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
@@ -252,9 +252,13 @@ public static class TownBuilder
         for (int i = 0; i < kids.Length; i++)
         {
             var look = looks.GetArrayElementAtIndex(i);
-            look.FindPropertyRelative("idle").objectReferenceValue = Load($"Characters/{kids[i]}_idle");
-            look.FindPropertyRelative("walk1").objectReferenceValue = Load($"Characters/{kids[i]}_walk1");
-            look.FindPropertyRelative("walk2").objectReferenceValue = Load($"Characters/{kids[i]}_walk2");
+            foreach (string pose in new[] { "idle", "walk1", "walk2" })
+            {
+                string Field(string view) => view + char.ToUpper(pose[0]) + pose[1..];
+                look.FindPropertyRelative(pose).objectReferenceValue = Load($"Characters/{kids[i]}_{pose}");
+                look.FindPropertyRelative(Field("up")).objectReferenceValue = Load($"Characters/{kids[i]}_up_{pose}");
+                look.FindPropertyRelative(Field("side")).objectReferenceValue = Load($"Characters/{kids[i]}_side_{pose}");
+            }
         }
         controller.ApplyModifiedPropertiesWithoutUndo();
         return SavePrefab(root);
@@ -1056,6 +1060,15 @@ public static class TownBuilder
         }
 
         Prop("Bus Stop", "Props/bus_stop", new Vector3(22f, -3.3f, 0f));
+        foreach (var spot in new[] { new Vector3(-22f, 12f, 0f), new Vector3(46f, 12.5f, 0f), new Vector3(-48f, -14f, 0f), new Vector3(4.5f, 13f, 0f) })
+        {
+            var stack = Prop("Haystack", "Props/haystack", spot);
+            stack.AddComponent<CircleCollider2D>().radius = 0.7f;
+            stack.GetComponent<CircleCollider2D>().offset = new Vector2(0f, 0.6f);
+        }
+        var cow = Prop("Cow", "Props/cow", new Vector3(-26.5f, 16.2f, 0f));
+        Solid(cow, 1.8f, 0.5f);
+        Talk(cow, "Pet", "Cow|Mmmmmmmm.", "|(She has slept through the entire power cut.)");
         Solid(Prop("Autorickshaw", "Props/autorickshaw", new Vector3(-20f, 21.2f, 0f)), 2.2f, 0.6f);
 
         // Side-job 1: Thatha's radio, locked in the godown. The gate opens while
@@ -1228,7 +1241,10 @@ public static class TownBuilder
 
     static GameObject House(float x, float y, int index)
     {
-        var house = Building($"House {index}", $"Props/house_{(index * 3 + 1) % 4}", x, y);
+        // Mostly small tiled houses, with the odd two-storey one for variety.
+        string style = index % 5 == 3 ? $"house_tall_{index % 2}" : $"house_{(index * 3 + 1) % 4}";
+        var house = Building($"House {index}", $"Props/{style}", x, y);
+        if (index % 4 == 0) Solid(Prop("Flower Pot", $"Props/pot_{index % 3}", new Vector3(x - 1.75f, y - 0.3f, 0f)), 0.4f, 0.3f);
         var kolam = Prop("Kolam", "Decals/kolam", new Vector3(x, y - 1f, 0f));
         kolam.GetComponent<SpriteRenderer>().sortingOrder = DecalOrder;
         kolam.transform.localScale = Vector3.one * 0.85f;

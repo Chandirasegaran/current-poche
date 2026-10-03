@@ -21,7 +21,14 @@ using UnityEngine;
 public class Quests : NetworkBehaviour
 {
     public const int FusesNeeded = 4, BallCount = 6;
-    const float IceSeconds = 40f;
+
+    // Difficulty. "Relaxed" (the host's setting) gives half as much time again
+    // on timers and slows every hazard down.
+    readonly NetworkVariable<bool> relaxed = new(true);
+    static bool Easy => Instance == null || !Instance.IsSpawned || Instance.relaxed.Value;
+    public static float Hazard => Easy ? 0.72f : 1f;   // multiplies hazard speeds
+    static float Patience => Easy ? 1.5f : 1f;         // multiplies timers
+    static float IceSeconds => 40f * Patience;
 
     [Flags]
     enum Flag
@@ -82,7 +89,7 @@ public class Quests : NetworkBehaviour
         "|CHAPTER 3 COMPLETE.   The level crossing on Tank Road is open. The goods yard is west of town.",
     };
 
-    const float ValveSeconds = 30f;
+    static float ValveSeconds => 30f * Patience;
 
     static readonly string[] PumpEnding =
     {
@@ -453,6 +460,8 @@ public class Quests : NetworkBehaviour
         minnalWaiting.SetActive(!(IsSpawned && Finished));
         if (IsSpawned && IsServer)
         {
+            if (relaxed.Value != GameSettings.Relaxed) relaxed.Value = GameSettings.Relaxed;
+
             // Side-jobs that finish by themselves.
             if (!Has(Flag.CratesDelivered))
             {

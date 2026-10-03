@@ -131,7 +131,24 @@ KIDS = [
 ]
 
 
-def kid_frame(hair, skin, shirt, shorts, braids, legs):
+# The head as seen from behind (all hair) and from the side (one eye, facing right).
+BACK_HEAD = {
+    5: "...ohhhhhhhho...",
+    6: "...ohhhhhhhho...",
+    7: "...ohhhhhhhho...",
+    8: "...ohhhhhhhho...",
+    9: "....ohhhhhho....",
+}
+SIDE_HEAD = {
+    5: "...ohhhhsssho...",
+    6: "...ohhhssssso...",
+    7: "...ohhhsssseo...",
+    8: "...ohhhssssdo...",
+    9: "....ohhssmso....",
+}
+
+
+def kid_frame(hair, skin, shirt, shorts, braids, legs, view="down"):
     hair, skin, shirt, shorts = rgb(hair), rgb(skin), rgb(shirt), rgb(shorts)
     pal = {
         ".": CLEAR,
@@ -148,19 +165,21 @@ def kid_frame(hair, skin, shirt, shorts, braids, legs):
         "P": shade(shorts, 0.78),
         "b": rgb("#d9d2c4"),
     }
-    rows = BODY + LEGS[legs]
+    rows = list(BODY) + LEGS[legs]
+    for row, pixels in {"up": BACK_HEAD, "side": SIDE_HEAD}.get(view, {}).items():
+        rows[row] = pixels
     img = Image.new("RGBA", (16, len(rows)), CLEAR)
     px = img.load()
     for y, row in enumerate(rows):
         for x, ch in enumerate(row):
             px[x, y] = pal[ch]
-    if braids:  # two plaits hanging beside the face, with a ribbon
+    if braids:  # two plaits hanging beside the face, with a ribbon (one shows from the side)
         for y in range(7, 12):
-            for x in (2, 13):
+            for x in ((2,) if view == "side" else (2, 13)):
                 px[x, y] = pal["h"] if y < 11 else rgb("#f25c5c")
             px[1, y] = pal["o"] if px[1, y] == CLEAR else px[1, y]
             px[14, y] = pal["o"] if px[14, y] == CLEAR else px[14, y]
-        for x in (2, 13):
+        for x in ((2,) if view == "side" else (2, 13)):
             px[x, 12] = pal["o"]
     return img
 
@@ -169,6 +188,8 @@ def make_characters():
     for name, hair, skin, shirt, shorts, braids in KIDS:
         for legs in LEGS:
             save(kid_frame(hair, skin, shirt, shorts, braids, legs), "Characters", f"{name}_{legs}.png")
+            for view in ("up", "side"):
+                save(kid_frame(hair, skin, shirt, shorts, braids, legs, view), "Characters", f"{name}_{view}_{legs}.png")
 
 
 # ---------------------------------------------------------------- props
