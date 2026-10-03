@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Current Pochu!
+Comment=A power-cut adventure for 1 to 4 friends
+Exec=currentpochu
+Icon=currentpochu
+Terminal=false
+Categories=Game;AdventureGame;

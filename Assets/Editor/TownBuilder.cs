@@ -176,6 +176,9 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
+        PlayerSettings.bundleVersion = "0.1.0";
+        var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
+        PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
         PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
         PlayerSettings.defaultScreenWidth = 1280;
