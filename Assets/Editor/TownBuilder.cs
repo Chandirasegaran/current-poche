@@ -40,6 +40,17 @@ public static class TownBuilder
     static readonly RectInt Godown = Area(-47, 9, -39, 15);
     const int GodownGateX = -43;
 
+    // The school store room by the cricket ground: the same, but its gate needs
+    // two stone slabs held down at once (the teamwork side-job).
+    static readonly RectInt Store = Area(36, 12, 42, 17);
+    const int StoreGateX = 39;
+
+    static string RoomAt(RectInt room, int gateX, int x, int y)
+    {
+        bool edge = x == room.xMin || x == room.xMax - 1 || y == room.yMin || y == room.yMax - 1;
+        return edge && !(x == gateX && y == room.yMin) ? "wall" : "cement";
+    }
+
     const int FieldsStart = 66, FieldsEnd = 148;
 
     // North of town, up the road past the bazaar, is the walled yard of Raja
@@ -182,14 +193,14 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
-        PlayerSettings.bundleVersion = "0.4.1";
+        PlayerSettings.bundleVersion = "0.5.0";
 
         // Android: package name, landscape only, 64-bit (which needs IL2CPP).
         var android = UnityEditor.Build.NamedBuildTarget.Android;
         PlayerSettings.SetApplicationIdentifier(android, "com.segar.currentpochu");
         PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
-        PlayerSettings.Android.bundleVersionCode = 5;
+        PlayerSettings.Android.bundleVersionCode = 6;
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
         PlayerSettings.allowedAutorotateToLandscapeLeft = PlayerSettings.allowedAutorotateToLandscapeRight = true;
         PlayerSettings.allowedAutorotateToPortrait = PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
@@ -269,6 +280,10 @@ public static class TownBuilder
         var controller = new SerializedObject(root.AddComponent<PlayerController>());
         controller.FindProperty("body").objectReferenceValue = body;
         controller.FindProperty("carryIcon").objectReferenceValue = carry;
+        var tag = Child(root, "Name Tag", new Vector3(0f, 1.4f, 0f)).AddComponent<SpriteRenderer>();
+        tag.sharedMaterial = GlowMaterial();
+        tag.sortingOrder = GlowOrder;
+        controller.FindProperty("nameTag").objectReferenceValue = tag;
         controller.FindProperty("torch").objectReferenceValue = torchLight;
         var items = controller.FindProperty("itemSprites");
         string[] itemNames = { null, "glasses", "leaf", "ice", "belt" };
@@ -444,11 +459,8 @@ public static class TownBuilder
         if (inTown && (OnStreet(y) || OnRoad(x))) return "road";
         if (y < Streets[2] - 3 || x > Roads[2] + 6 || x < Roads[0] - 3) return "paddy";
 
-        if (Godown.Contains(new Vector2Int(x, y)))
-        {
-            bool edge = x == Godown.xMin || x == Godown.xMax - 1 || y == Godown.yMin || y == Godown.yMax - 1;
-            return edge && !(x == GodownGateX && y == Godown.yMin) ? "wall" : "cement";
-        }
+        if (Godown.Contains(new Vector2Int(x, y))) return RoomAt(Godown, GodownGateX, x, y);
+        if (Store.Contains(new Vector2Int(x, y))) return RoomAt(Store, StoreGateX, x, y);
         if (Tank.Contains(new Vector2Int(x, y))) return "water";
         var steps = new RectInt(Tank.x - 1, Tank.y - 1, Tank.width + 2, Tank.height + 2);
         if (steps.Contains(new Vector2Int(x, y))) return "steps";
@@ -498,6 +510,7 @@ public static class TownBuilder
         blocked.Add(new Rect(Tank.x - 2, Tank.y - 2, Tank.width + 4, Tank.height + 4));
         blocked.Add(new Rect(Pitch.x - 6, Pitch.y - 2, Pitch.width + 12, Pitch.height + 4));
         blocked.Add(new Rect(Godown.xMin - 2, Godown.yMin - 4, Godown.width + 4, Godown.height + 6));
+        blocked.Add(new Rect(Store.xMin - 3, Store.yMin - 4, Store.width + 6, Store.height + 6));
     }
 
     // ------------------------------------------------------------ districts
@@ -628,7 +641,7 @@ public static class TownBuilder
         Vector3[] balls =
         {
             new(-34f, 16f, 0f), new(10.5f, -15f, 0f), new(31f, -21.6f, 0f),
-            new(51f, 27.2f, 0f), new(-50.5f, -12f, 0f), new(41f, 15f, 0f),
+            new(51f, 27.2f, 0f), new(-50.5f, -12f, 0f), new(33f, 18.5f, 0f),
         };
         for (int i = 0; i < balls.Length; i++)
             Pickup("Cricket Ball", "Items/ball", balls[i], $"ball{i}");
@@ -1021,18 +1034,26 @@ public static class TownBuilder
         Light(lantern, new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.5f);
         lantern.AddComponent<FlickerLight>();
 
-        // Minnal, waiting on the dam wall, too weak to jump.
-        var waiting = Child(props, "Minnal Waiting", new Vector3(-116f, Plateau.yMax + 0.3f, 0f));
-        var dim = Child(waiting, "Minnal", Vector3.zero).AddComponent<SpriteRenderer>();
+        // Minnal follows the players up the ridge and settles here, on the dam wall.
+        var perch = new GameObject("Minnal Perch").transform;
+        perch.position = new Vector3(-116f, Plateau.yMax - 0.6f, 0f);
+
+        var friend = Child(props, "Minnal", new Vector3(-109.5f, -2.5f, 0f));
+        var dim = Child(friend, "Body", new Vector3(0f, 0.9f, 0f)).AddComponent<SpriteRenderer>();
         dim.sprite = Load("Characters/minnal");
         dim.sharedMaterial = GlowMaterial();
-        dim.color = new Color(1f, 1f, 1f, 0.7f);
+        dim.color = new Color(1f, 1f, 1f, 0.75f);
         dim.sortingOrder = GlowOrder;
-        Light(dim.gameObject, new Color(1f, 0.95f, 0.6f), 1.1f, 0.2f, 3f);
-        dim.gameObject.AddComponent<FlickerLight>();
-        Act(Child(waiting, "Look", new Vector3(0f, -2.4f, 0f)), "Look", "minnal");
+        var faint = Light(Child(friend, "Glow", new Vector3(0f, 0.9f, 0f)), new Color(1f, 0.95f, 0.6f), 1.1f, 0.2f, 3.2f);
+        friend.AddComponent<NetworkObject>();
+        SyncedPosition(friend);
+        var companion = friend.AddComponent<MinnalFriend>();
+        Set(companion, "body", dim);
+        Set(companion, "glow", faint);
+        Set(companion, "perch", perch);
+        Act(friend, "Look", "minnal");
 
-        var leaving = Prop("Minnal Leaving", "Characters/minnal", waiting.transform.position);
+        var leaving = Prop("Minnal Leaving", "Characters/minnal", perch.position + Vector3.up * 0.9f);
         var bright = leaving.GetComponent<SpriteRenderer>();
         bright.sharedMaterial = GlowMaterial();
         bright.sortingOrder = GlowOrder;
@@ -1049,7 +1070,7 @@ public static class TownBuilder
 
         Fill(quests.FindProperty("yardOff"), new List<GameObject> { gate });
         quests.FindProperty("generator").objectReferenceValue = generator;
-        quests.FindProperty("minnalWaiting").objectReferenceValue = waiting;
+        quests.FindProperty("moon").objectReferenceValue = GameObject.Find("Moonlight").GetComponent<Light2D>();
         quests.FindProperty("minnalLeaving").objectReferenceValue = leaving;
         quests.FindProperty("skyFlash").objectReferenceValue = flash;
     }
@@ -1115,6 +1136,35 @@ public static class TownBuilder
         Set(plate, "down", Load("Decals/slab_down"));
         Set(plate, "gate", gate);
         Pickup("Thatha's Radio", "Items/radio", new Vector3(Godown.center.x, Godown.center.y + 0.5f, 0f), "radio");
+
+        // Side-job 4 (teamwork): the club trophy, behind a gate that needs BOTH slabs held down.
+        var storeGate = Prop("Store Gate", "Props/gate_bars", new Vector3(StoreGateX + 0.5f, Store.yMin, 0f));
+        storeGate.AddComponent<BoxCollider2D>().size = new Vector2(1f, 1f);
+        storeGate.GetComponent<BoxCollider2D>().offset = new Vector2(0f, 0.5f);
+        var twins = new PressurePlate[2];
+        for (int i = 0; i < 2; i++)
+        {
+            var twin = Prop("Stone Slab", "Decals/slab_up", new Vector3(StoreGateX + 0.5f + (i == 0 ? -3.4f : 3.4f), Store.yMin - 1.5f, 0f));
+            twin.GetComponent<SpriteRenderer>().sortingOrder = DecalOrder;
+            twin.AddComponent<NetworkObject>();
+            twins[i] = twin.AddComponent<PressurePlate>();
+            Set(twins[i], "slab", twin.GetComponent<SpriteRenderer>());
+            Set(twins[i], "up", Load("Decals/slab_up"));
+            Set(twins[i], "down", Load("Decals/slab_down"));
+            Set(twins[i], "gate", storeGate);
+        }
+        Set(twins[0], "partner", twins[1]);
+        Set(twins[1], "partner", twins[0]);
+        Pickup("Club Trophy", "Items/trophy", new Vector3(Store.center.x, Store.center.y + 0.4f, 0f), "trophy");
+
+        // One kolam hidden in each part of the world, for the curious.
+        Vector3[] kolams =
+        {
+            new(33f, -6.5f, 0f), new(110.5f, -13.5f, 0f), new(-21f, 89f, 0f),
+            new(-145f, -36f, 0f), new(-128.5f, 60f, 0f), new(-82f, 72f, 0f),
+        };
+        for (int i = 0; i < kolams.Length; i++)
+            Pickup("Hidden Kolam", $"Decals/kolam_small_{i}", kolams[i], $"kolam{i}");
 
         // Side-job 2: three crates of milk bottles to carry from the bus stop to the tea stall.
         foreach (var spot in new[] { new Vector3(19.4f, -4.8f, 0f), new Vector3(20.7f, -5.1f, 0f), new Vector3(24.4f, -4.9f, 0f) })

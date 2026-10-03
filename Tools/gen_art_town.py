@@ -1253,6 +1253,30 @@ def make_variety_art():
     save(cow(), "Props", "cow.png")
 
 
+def small_kolam(seed):
+    """A little four-way symmetric kolam, different for each seed."""
+    rnd = random.Random(seed)
+    size = 16
+    img = Image.new("RGBA", (size, size), CLEAR)
+    px = img.load()
+    white = rgb("#fff6dc")
+    for _ in range(9 + seed % 4):
+        x, y = rnd.randrange(0, 8), rnd.randrange(0, 8)
+        for sx, sy in ((x, y), (15 - x, y), (x, 15 - y), (15 - x, 15 - y), (y, x), (15 - y, x), (y, 15 - x), (15 - y, 15 - x)):
+            px[sx, sy] = white
+    for i in range(3, 8):  # a diamond to hold it together
+        for sx, sy in ((i, 10 - i), (15 - i, 10 - i), (i, 5 + i), (15 - i, 5 + i)):
+            px[sx, sy] = white
+    px[7, 7] = px[8, 7] = px[7, 8] = px[8, 8] = rgb("#ffcf6b")
+    return img
+
+
+def make_collectible_art():
+    for i in range(6):
+        save(small_kolam(900 + i * 7), "Decals", f"kolam_small_{i}.png")
+    save(small(["y...y", "yyyyy", ".yyy.", "..y..", ".yyy."], {"y": "#e8c66a"}), "Items", "trophy.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -1265,3 +1289,4 @@ def main():
     make_hills_art()
     make_extras_art()
     make_variety_art()
+    make_collectible_art()

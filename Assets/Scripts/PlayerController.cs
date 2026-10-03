@@ -26,6 +26,12 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] KidLook[] looks;
     [SerializeField] UnityEngine.Rendering.Universal.Light2D torch;
     [SerializeField] SpriteRenderer carryIcon;
+    [SerializeField] SpriteRenderer nameTag;
+
+    // Quick things to say to friends, on keys 1 to 4.
+    public static readonly string[] Emotes = { "Come here!", "Wait!", "Look!", "Ha ha!" };
+    string tagText;
+    float emoteUntil;
     [SerializeField] Sprite[] itemSprites; // indexed by Item
 
     // The eight kids, in the order of the "looks" list: four boys, then four girls.
@@ -115,6 +121,33 @@ public class PlayerController : NetworkBehaviour
         if (Local == this) Local = null;
     }
 
+    // An emote goes to the server, which shows it to everyone.
+    [Rpc(SendTo.Server)]
+    public void EmoteRpc(byte which) => ShowEmoteRpc(which);
+
+    [Rpc(SendTo.Everyone)]
+    void ShowEmoteRpc(byte which)
+    {
+        emoteUntil = Time.time + 2.5f;
+        SetTag(Emotes[which % Emotes.Length], new Color(1f, 0.86f, 0.42f));
+        Sfx.PlayAt("click", transform.position);
+    }
+
+    // Writes the floating text above this player's head.
+    void SetTag(string text, Color colour)
+    {
+        if (text == tagText) return;
+        tagText = text;
+        if (nameTag.sprite != null)
+        {
+            Destroy(nameTag.sprite.texture);
+            Destroy(nameTag.sprite);
+        }
+        var texture = PixelFont.Render(text, 0, true);
+        nameTag.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0f), 16f);
+        nameTag.color = colour;
+    }
+
     // Sent by the server to the player's own machine when a ghost or a train
     // catches them: they are put back at a safe spot.
     [Rpc(SendTo.Owner)]
@@ -146,6 +179,10 @@ public class PlayerController : NetworkBehaviour
 
         // Keys (which can be changed in the settings), arrows, or the touch stick.
         moveInput = Controls.Movement();
+
+        for (int i = 0; i < Emotes.Length; i++)
+            if (Controls.Tapped(Key.Digit1 + i)) EmoteRpc((byte)i);
+        if (TouchInput.Emote) EmoteRpc(0);
 
         if ((Controls.Pressed(GameAction.Whistle) || TouchInput.Whistle) && Dog.Instance != null)
         {
@@ -197,6 +234,10 @@ public class PlayerController : NetworkBehaviour
             walkClock = 0f;
             body.sprite = still;
         }
+
+        // Friends have their name over their head; an emote replaces it for a moment.
+        if (Time.time > emoteUntil) SetTag(IsOwner ? "" : CharacterName, new Color(0.82f, 0.86f, 0.98f, 0.85f));
+        nameTag.transform.localPosition = new Vector3(0f, Carrying == Item.None ? 1.4f : 1.95f, 0f);
 
         // Every side-job finished makes everyone's torch reach a little further.
         if (Quests.Instance != null) torch.pointLightOuterRadius = 7.5f + Quests.Instance.SideJobs;

@@ -15,7 +15,7 @@ public class GameUI : MonoBehaviour
 
     // True while the player should not be walking around.
     public static bool BlocksInput => Instance != null &&
-        (Instance.dialogue.activeSelf || Instance.pause.activeSelf || Instance.settings.activeSelf);
+        (Instance.dialogue.activeSelf || Instance.pause.activeSelf || Instance.settings.activeSelf || Instance.summary.activeSelf);
 
     static readonly Color Yellow = new(1f, 0.86f, 0.42f);
     static readonly Color Pale = new(0.82f, 0.86f, 0.98f);
@@ -36,6 +36,13 @@ public class GameUI : MonoBehaviour
     GameObject eraseButton, settings, credits, touchControls, quitButton;
     RectTransform stickBase, stickKnob;
     TouchScreenKeyboard softKeyboard;
+    GameObject card, summary;
+    PixelLabel cardTitle, cardLine, summaryText, kolamLabel;
+    CanvasGroup cardFade;
+    float cardTimer;
+    string region = "";
+    bool summaryShown;
+    readonly HashSet<string> cardsShown = new();
     readonly Image[] kidFrames = new Image[PlayerController.Names.Length];
     PixelLabel kidName;
     PixelLabel musicValue, soundValue, fullscreenValue, difficultyValue;
@@ -114,6 +121,12 @@ public class GameUI : MonoBehaviour
         bool usable = sessions != null && sessions.Ready && !sessions.Busy;
         soloButton.interactable = sessions != null && !sessions.Busy; // solo works offline too
         eraseButton.SetActive(Quests.HasSave);
+        kolamLabel.Text = $"Kolams found: {Quests.SavedKolams()} of {Quests.KolamCount}";
+        cardsShown.Clear();
+        card.SetActive(false);
+        summary.SetActive(false);
+        summaryShown = false;
+        region = "";
         for (int i = 0; i < kidFrames.Length; i++)
             kidFrames[i].color = i == GameSettings.Character ? Yellow : new Color(1f, 1f, 1f, 0.55f);
         kidName.Text = PlayerController.Names[GameSettings.Character];
@@ -184,7 +197,7 @@ public class GameUI : MonoBehaviour
             if (Quests.Instance != null && Quests.Instance.HasProgress)
             {
                 celebrated = lit == total;
-                Toast("Welcome back. Your progress was loaded.\nCheck the task list for what is left.");
+                Toast("Welcome back. " + Quests.Instance.Recap(), 9f);
                 return;
             }
             Say(Intro);
@@ -197,7 +210,16 @@ public class GameUI : MonoBehaviour
             Toast("Every streetlight is lit!\nNow the transformer needs four fuses.");
         }
 
+        UpdateCards(player);
+
         var quests = Quests.Instance;
+        if (quests != null && quests.Finished && !summaryShown && !dialogue.activeSelf && introShown)
+        {
+            // The story is over: show how the night went.
+            summaryShown = true;
+            summaryText.Text = quests.Summary();
+            summary.SetActive(true);
+        }
         if (Controls.Pressed(GameAction.Tasks)) showTasks = !showTasks;
         questPanel.SetActive(showTasks && !dialogue.activeSelf); // never cover the story
         if (quests != null)
@@ -227,6 +249,68 @@ public class GameUI : MonoBehaviour
         // Messages sit at the bottom of the screen, or just above the dialogue box.
         ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 62f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    // ------------------------------------------------------------ chapter cards
+
+    // The name of each part of the world, shown the first time you walk into it.
+    static readonly Dictionary<string, (string title, string line)> Places = new()
+    {
+        ["town"] = ("CHAPTER 1", "Bazaar Blackout"),
+        ["fields"] = ("CHAPTER 2", "The Pump-set"),
+        ["cinema"] = ("CHAPTER 3", "Last Show at Raja Talkies"),
+        ["yard"] = ("CHAPTER 4", "Goods Yard"),
+        ["hills"] = ("CHAPTER 5", "Kaatthaadi Hills"),
+        ["dam"] = ("CHAPTER 6", "The Powerhouse"),
+    };
+
+    static string RegionAt(Vector2 at) =>
+        at.x >= 66f ? "fields"
+        : at.x < -65f ? (at.y >= 70f ? "dam" : at.y >= -5f ? "hills" : "yard")
+        : at.y >= 58f ? "cinema" : "town";
+
+    void UpdateCards(PlayerController player)
+    {
+        string now = RegionAt(player.transform.position);
+        if (now != region && !dialogue.activeSelf)
+        {
+            region = now;
+            if (cardsShown.Add(now))
+            {
+                cardTitle.Text = Places[now].title;
+                cardLine.Text = Places[now].line;
+                cardTimer = 4f;
+                card.SetActive(true);
+            }
+        }
+
+        if (!card.activeSelf) return;
+        cardTimer -= Time.deltaTime;
+        cardFade.alpha = Mathf.Clamp01(Mathf.Min(cardTimer, 4f - cardTimer) * 2f); // fade in, hold, fade out
+        if (cardTimer <= 0f) card.SetActive(false);
+    }
+
+    void BuildCards(Transform canvas)
+    {
+        var centre = new Vector2(0.5f, 0.5f);
+        var top = new Vector2(0.5f, 1f);
+
+        card = Group(canvas, "Chapter Card");
+        cardFade = card.AddComponent<CanvasGroup>();
+        cardFade.blocksRaycasts = false;
+        var band = Box(card.transform, null, new Vector2(0.5f, 0.72f), centre, Vector2.zero, new Vector2(460, 46));
+        band.color = new Color(0.02f, 0.03f, 0.09f, 0.75f);
+        cardTitle = Label(band.transform, "", centre, centre, new Vector2(0, 11), Pale, 0, true);
+        cardLine = Label(band.transform, "", centre, centre, new Vector2(0, -6), Yellow);
+        cardLine.scale = 2;
+        card.SetActive(false);
+
+        summary = Backdrop(canvas, "Summary");
+        var page = Box(summary.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(230, 150)).transform;
+        Label(page, "YOUR NIGHT IN MINNALPATTI", top, top, new Vector2(0, -8), Yellow);
+        summaryText = Label(page, "", top, top, new Vector2(0, -30), Pale);
+        MakeButton(page, "KEEP WANDERING", top, new Vector2(0, -122), new Vector2(150, 18), () => summary.SetActive(false));
+        summary.SetActive(false);
     }
 
     // ------------------------------------------------------------ touch controls
@@ -266,7 +350,7 @@ public class GameUI : MonoBehaviour
     void LateUpdate()
     {
         // Button taps last exactly one frame.
-        TouchInput.Use = TouchInput.Whistle = false;
+        TouchInput.Use = TouchInput.Whistle = TouchInput.Emote = false;
     }
 
     void BuildTouchControls(Transform canvas)
@@ -279,6 +363,7 @@ public class GameUI : MonoBehaviour
         var right = Vector2.right;
         TouchButton("USE", right, new Vector2(-40, 62), new Vector2(56, 34), () => TouchInput.Use = true);
         TouchButton("DOG", right, new Vector2(-96, 40), new Vector2(46, 24), () => TouchInput.Whistle = true);
+        TouchButton("HEY!", right, new Vector2(-96, 68), new Vector2(46, 24), () => TouchInput.Emote = true);
         var edge = new Vector2(0f, 0.5f); // left edge, clear of the task list on the right
         TouchButton("MENU", edge, new Vector2(28, 16), new Vector2(46, 20), () => pause.SetActive(true));
         TouchButton("TASKS", edge, new Vector2(28, -10), new Vector2(46, 20), () => showTasks = !showTasks);
@@ -524,6 +609,7 @@ public class GameUI : MonoBehaviour
             kidFrames[i] = frame;
         }
         kidName = Label(picker, "", bottom, bottom, new Vector2(0, 3), Yellow);
+        kolamLabel = Label(title.transform, "", bottom, bottom, new Vector2(0, 16), Dim, 0, true);
 
         // ---- in-game heads-up display
         hud = Group(canvas, "HUD");
@@ -566,6 +652,7 @@ public class GameUI : MonoBehaviour
             () => _ = SessionManager.Instance.Leave());
         pause.SetActive(false);
 
+        BuildCards(canvas);
         BuildTouchControls(canvas);
         BuildSettings(canvas);
     }

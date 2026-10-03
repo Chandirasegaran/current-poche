@@ -8,6 +8,9 @@ public class PressurePlate : NetworkBehaviour
     [SerializeField] SpriteRenderer slab;
     [SerializeField] Sprite up, down;
     [SerializeField] GameObject gate;
+    [SerializeField] PressurePlate partner; // if set, both slabs must be held down at once
+
+    public bool Pressed => IsSpawned && pressed.Value;
 
     readonly NetworkVariable<bool> pressed = new();
 
@@ -26,9 +29,8 @@ public class PressurePlate : NetworkBehaviour
             }
         }
 
-        bool open = IsSpawned && pressed.Value;
-        slab.sprite = open ? down : up;
-        gate.SetActive(!open);
+        slab.sprite = Pressed ? down : up;
+        gate.SetActive(!(Pressed && (partner == null || partner.Pressed)));
     }
 
     bool On(Transform thing) => Vector2.Distance(thing.position, transform.position) < 0.85f;

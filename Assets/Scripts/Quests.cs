@@ -45,9 +45,24 @@ public class Quests : NetworkBehaviour
         Finished = 8192,
         // Side-jobs: optional, any time
         RadioFound = 1 << 14, RadioReturned = 1 << 15, CratesDelivered = 1 << 16, TempleLit = 1 << 17,
+        TrophyFound = 1 << 18, TrophyReturned = 1 << 19,
     }
 
-    public const int SideJobCount = 3;
+    public const int SideJobCount = 4, KolamCount = 6;
+
+    // What each person says once the story is over and the sun is up.
+    static readonly Dictionary<string, string> Epilogue = new()
+    {
+        ["paati"] = "Paati|You were out ALL night? ...Come and eat. And then tell me everything, slowly, from the beginning.",
+        ["lineman"] = "Lineman Murugesan|Nineteen years with the Electricity Board, and last night I helped throw a lightning bolt back into the sky. I am putting in for overtime.",
+        ["murugesan"] = "Lineman Murugesan|Go home, thambi. Paati will want to know who won.",
+        ["teamaster"] = "Tea Master Selvam|Morning tea for the heroes. On the house. ...The FIRST one is on the house.",
+        ["chairman"] = "The Chairman|I gave my speech in the dark. They say it was my best. Nobody could see my notes, including me.",
+        ["ravi"] = "Umpire Ravi|They won off the last ball! I am going to tell my grandchildren I umpired the night it happened.",
+        ["farmer"] = "Farmer Periyasamy|The paddy has had its drink and the sky is clear. That little one of yours brought the rain home with it.",
+        ["watchman"] = "Watchman Kannan|I am reopening Raja Talkies. First show tonight. You and your bright friend get in free, if it ever visits.",
+        ["rani"] = "Signal Rani|The night goods ran on time for once. I have written 'lightning' in the delay register and nobody will believe it.",
+    };
 
     public const int WindmillCount = 3;
 
@@ -74,6 +89,7 @@ public class Quests : NetworkBehaviour
         "|Riding on its headlamp, legs dangling, is the little lightning. It waves. You think it waves.",
         "Signal Rani|Thirty years on the railways, and that is the first passenger I have seen travel on the OUTSIDE of the lamp.",
         "Signal Rani|That train climbs to the windmill ridge, kanna, and then down to the old dam. If your bright friend is going home, it is going that way.",
+        "Radio|...eleven needed off the last over! You can hear it from the cabin window, faint and crackling.",
         "|CHAPTER 4 COMPLETE.   The path up to the windmill ridge is open, on the north side of the yard.",
     };
 
@@ -86,6 +102,7 @@ public class Quests : NetworkBehaviour
         "Watchman Kannan|Aiyo. THAT is no ghost. The ghost was only my bedsheets on the line. That is something else.",
         "|The little lightning notices you. It squeaks, pulls the glow off the screen like a blanket, and shoots away west, along the railway line.",
         "Watchman Kannan|Poor thing. I think it only wanted a night-light. ...West is the goods yard, kanna. Mind the trains.",
+        "Radio|...nineteen off twelve. The watchman's transistor has found the match again.",
         "|CHAPTER 3 COMPLETE.   The level crossing on Tank Road is open. The goods yard is west of town.",
     };
 
@@ -98,6 +115,7 @@ public class Quests : NetworkBehaviour
         "|Something on the roof of the pump-house is glowing. It is the size of a kitten, and shaped like a lightning bolt.",
         "|It drinks the spark straight out of the motor, looks at you with two round, frightened eyes, and is gone. North. Towards the old cinema.",
         "Farmer Periyasamy|...That was not a minmini.",
+        "Radio|...twenty-seven needed off eighteen. Nobody in Minnalpatti can see it, but half the town is listening.",
         "|CHAPTER 2 COMPLETE.   The road north to Raja Talkies is open.",
     };
 
@@ -127,7 +145,8 @@ public class Quests : NetworkBehaviour
     [SerializeField] Spinner[] blades;
     [SerializeField] GameObject[] windmillLights;
     [SerializeField] StreetLight generator;
-    [SerializeField] GameObject minnalWaiting, minnalLeaving, skyFlash;
+    [SerializeField] GameObject minnalLeaving, skyFlash;
+    [SerializeField] UnityEngine.Rendering.Universal.Light2D moon;
     [SerializeField] Transform crateSpot;       // where Selvam wants his crates
     [SerializeField] StreetLight[] templeLamps; // the oil lamps around the tank
 
@@ -149,7 +168,44 @@ public class Quests : NetworkBehaviour
     public bool Finished => Has(Flag.Finished);
 
     // How many side-jobs are done. Each one makes every torch reach further.
-    public int SideJobs => (Has(Flag.RadioReturned) ? 1 : 0) + (Has(Flag.CratesDelivered) ? 1 : 0) + (Has(Flag.TempleLit) ? 1 : 0);
+    public int SideJobs => (Has(Flag.RadioReturned) ? 1 : 0) + (Has(Flag.CratesDelivered) ? 1 : 0)
+                           + (Has(Flag.TempleLit) ? 1 : 0) + (Has(Flag.TrophyReturned) ? 1 : 0);
+
+    readonly NetworkVariable<int> kolamMask = new();      // which hidden kolams have been found
+    readonly NetworkVariable<float> playSeconds = new();  // how long this story has been played
+    public int KolamsFound => Bits(kolamMask.Value, KolamCount);
+
+    // Which chapter the players are on, 1 to 6 (7 once the story is over).
+    public int Chapter => Finished ? 7 : YardDone ? 5 : FilmPlayed ? 4 : Has(Flag.PumpStarted) ? 3 : PowerRestored ? 2 : 1;
+
+    // One sentence to remind a returning player where they were.
+    public string Recap() => Chapter switch
+    {
+        1 => $"The power is still out. {LampsLit} of {StreetLight.All.Count} streetlights are lit and you hold {Fuses} of {FusesNeeded} fuses.",
+        2 => "The town has power again, but the minminis flew east. The pump-set in the fields is waiting.",
+        3 => "You saw a little lightning bolt at the pump-set. It fled north, to the old cinema.",
+        4 => "The film played and the lightning ran west along the railway, to the goods yard.",
+        5 => "The signal is green and the night goods has gone up to the windmill ridge. Follow it.",
+        _ => "The story is finished. The town is yours to wander.",
+    };
+
+    // The numbers shown when the story ends.
+    public string Summary()
+    {
+        int minutes = Mathf.RoundToInt(playSeconds.Value / 60f);
+        return $"Time: {minutes / 60} h {minutes % 60} min\n"
+               + $"Streetlights lit: {LampsLit} of {StreetLight.All.Count}\n"
+               + $"Side-jobs done: {SideJobs} of {SideJobCount}\n"
+               + $"Kolams found: {KolamsFound} of {KolamCount}\n"
+               + $"Players at the end: {PlayerController.All.Count}";
+    }
+
+    // How many kolams the saved story has, for the title screen (no game running).
+    public static int SavedKolams()
+    {
+        try { return HasSave ? Bits(JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath)).kolamMask, KolamCount) : 0; }
+        catch (Exception) { return 0; }
+    }
     int WindmillsTurning => Bits(brakeMask.Value, WindmillCount);
 
     public bool YardDone => Has(Flag.YardDone);
@@ -224,7 +280,8 @@ public class Quests : NetworkBehaviour
     [Serializable]
     class SaveData
     {
-        public int flags, ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask;
+        public int flags, ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask, kolamMask;
+        public float playSeconds;
         public List<string> lit = new(); // which lamps (and the pump) are powered
     }
 
@@ -259,6 +316,7 @@ public class Quests : NetworkBehaviour
             flags = flags.Value, ballMask = ballMask.Value, fuses = fuses.Value,
             reelMask = reelMask.Value, mirrorMask = mirrorMask.Value,
             lanternMask = lanternMask.Value, leverMask = leverMask.Value, brakeMask = brakeMask.Value,
+            kolamMask = kolamMask.Value, playSeconds = playSeconds.Value,
         };
         foreach (var lamp in StreetLight.Feedable)
             if (lamp.IsLit) data.lit.Add(Key(lamp));
@@ -292,6 +350,7 @@ public class Quests : NetworkBehaviour
         if ((saved & (int)Flag.GlassesReturned) == 0) saved &= ~(int)Flag.GlassesFound;
         if ((saved & (int)Flag.BeltFitted) == 0) saved &= ~(int)Flag.BeltTaken;
         if ((saved & (int)Flag.RadioReturned) == 0) saved &= ~(int)Flag.RadioFound;
+        if ((saved & (int)Flag.TrophyReturned) == 0) saved &= ~(int)Flag.TrophyFound;
 
         flags.Value = saved;
         ballMask.Value = data.ballMask;
@@ -301,6 +360,8 @@ public class Quests : NetworkBehaviour
         lanternMask.Value = data.lanternMask;
         leverMask.Value = data.leverMask;
         brakeMask.Value = data.brakeMask;
+        kolamMask.Value = data.kolamMask;
+        playSeconds.Value = data.playSeconds;
         foreach (var lamp in StreetLight.Feedable)
             if (data.lit.Contains(Key(lamp)) && !lamp.IsLit) lamp.ForceLit();
         yield return null;
@@ -365,9 +426,11 @@ public class Quests : NetworkBehaviour
             iceMeltsAt.Value = 0;
             valveShutsAt.Value = Vector3.zero;
             reelMask.Value = mirrorMask.Value = lanternMask.Value = leverMask.Value = brakeMask.Value = 0;
+            kolamMask.Value = 0;
+            playSeconds.Value = 0f;
             StartCoroutine(Load());
         }
-        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask, kolamMask })
             counter.OnValueChanged += OnCounterChanged;
         flags.OnValueChanged += OnFlagsChanged;
         if (!IsServer) StartCoroutine(SaveWhenJoined());
@@ -376,7 +439,7 @@ public class Quests : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         flags.OnValueChanged -= OnFlagsChanged;
-        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask, kolamMask })
             counter.OnValueChanged -= OnCounterChanged;
     }
 
@@ -492,9 +555,21 @@ public class Quests : NetworkBehaviour
             blades[i].enabled = turning;
             windmillLights[i].SetActive(turning);
         }
-        minnalWaiting.SetActive(!(IsSpawned && Finished));
+        // Night until the story is over; after the flash has faded, a bright morning.
+        bool day = IsSpawned && Finished;
+        if (!skyFlash.activeSelf || !skyFlash.GetComponent<Flash>().enabled)
+        {
+            moon.color = day ? new Color(1f, 0.96f, 0.88f) : new Color(0.38f, 0.46f, 0.85f);
+            moon.intensity = day ? 1f : 0.42f;
+        }
+
         if (IsSpawned && IsServer)
         {
+            // Keep count of the time played (written to the save a few times a minute).
+            float before = playSeconds.Value;
+            playSeconds.Value = before + Time.deltaTime;
+            if ((int)(playSeconds.Value / 20f) != (int)(before / 20f)) Save();
+
             if (relaxed.Value != GameSettings.Relaxed) relaxed.Value = GameSettings.Relaxed;
 
             // Side-jobs that finish by themselves.
@@ -554,6 +629,8 @@ public class Quests : NetworkBehaviour
         if (!IsSpawned) return true;
         if (action == "glasses") return !Has(Flag.GlassesFound);
         if (action == "radio") return !Has(Flag.RadioFound);
+        if (action == "trophy") return !Has(Flag.TrophyFound);
+        if (action.StartsWith("kolam")) return (kolamMask.Value & (1 << (action[5] - '0'))) == 0;
         if (action.StartsWith("ball")) return (ballMask.Value & (1 << (action[4] - '0'))) == 0;
         if (action.StartsWith("reel")) return (reelMask.Value & (1 << (action[4] - '0'))) == 0;
         if (action.StartsWith("lantern")) return (lanternMask.Value & (1 << (action[7] - '0'))) == 0;
@@ -614,6 +691,10 @@ public class Quests : NetworkBehaviour
     {
         var item = player.Carrying;
         int lamps = LampsLit, total = StreetLight.All.Count;
+
+        if (Finished && Epilogue.TryGetValue(action, out string goodbye)) return new[] { goodbye };
+        if (action.StartsWith("kolam"))
+            return new[] { $"|A kolam drawn in rice flour, somehow untouched. You copy it carefully into your notebook. That makes {KolamsFound + 1} of {KolamCount}." };
 
         switch (action)
         {
@@ -709,8 +790,21 @@ public class Quests : NetworkBehaviour
                 if (IceSecondsLeft > 0) return new[] { "|Somebody is already running with a block. One at a time!" };
                 return new[] { "|You heave out a block of ice. It is already dripping. RUN to the wedding hall!" };
 
+            case "trophy":
+                return new[] { "|The Minnalpatti Boys Cricket Club trophy, 1987. It is mostly tin, and somebody has been keeping pencils in it." };
+
             case "ravi":
-                if (Has(Flag.BallsReturned)) return new[] { "Umpire Ravi|Six balls, all present. If the current comes back we can even finish OUR final." };
+                if (Has(Flag.TrophyReturned)) return new[] { "Umpire Ravi|The trophy is back on the stumps where it belongs. We play for it at sunrise." };
+                if (Has(Flag.TrophyFound)) return new[]
+                {
+                    "Umpire Ravi|THE TROPHY! We have not seen it since the store room got its new lock!",
+                    "Umpire Ravi|You needed two weights for those slabs, no? That is teamwork. That is what the trophy is FOR.",
+                };
+                if (Has(Flag.BallsReturned)) return new[]
+                {
+                    "Umpire Ravi|Six balls, all present. If the current comes back we can even finish OUR final.",
+                    "Umpire Ravi|One thing more. Our club trophy is locked in the school store room, east of the pitch. The gate only opens while BOTH stone slabs are held down. Two friends, or a friend and a dog, or a dog and a crate...",
+                };
                 if (BallsFound == BallCount) return new[]
                 {
                     "Umpire Ravi|All six! Even the one Dinesh hit over the temple tank!",
@@ -778,7 +872,7 @@ public class Quests : NetworkBehaviour
                 return new[] { $"Lineman Murugesan|All three windmills are turning! Now the generator. It needs a spark to start: {generator.Needed} minminis. I think they know what it is for. Look how they are gathering." };
 
             case "minnal":
-                return new[] { "|The little lightning is curled up on the dam wall, dim as a dying torch. It looks at the clouds, far above, and then at you." };
+                return new[] { "|The little lightning is dim as a dying torch. It looks at the clouds, far above, and then at you. It stays close." };
 
             case "generator":
                 if (generator.IsLit) return new[] { "|The generator sings." };
@@ -863,6 +957,15 @@ public class Quests : NetworkBehaviour
                 AnnounceRpc("", "pickup");
                 break;
 
+            case "trophy" when !Has(Flag.TrophyFound):
+                Raise(Flag.TrophyFound);
+                AnnounceRpc("", "pickup");
+                break;
+
+            case "ravi" when Has(Flag.TrophyFound) && !Has(Flag.TrophyReturned):
+                SideJobDone(Flag.TrophyReturned, "The club trophy is back.");
+                break;
+
             case "radio" when !Has(Flag.RadioFound):
                 Raise(Flag.RadioFound);
                 AnnounceRpc("", "pickup");
@@ -923,7 +1026,12 @@ public class Quests : NetworkBehaviour
                 break;
 
             default:
-                if (action.StartsWith("brake") && action.Length == 6)
+                if (action.StartsWith("kolam") && action.Length == 6)
+                {
+                    kolamMask.Value |= 1 << (action[5] - '0');
+                    AnnounceRpc("", "quest");
+                }
+                else if (action.StartsWith("brake") && action.Length == 6)
                 {
                     brakeMask.Value |= 1 << (action[5] - '0');
                     AnnounceRpc("", "lamp");
