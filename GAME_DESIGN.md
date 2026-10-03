@@ -104,10 +104,12 @@ The chapters as built are listed in [README.md](README.md). They follow this doc
 plan with simpler puzzles in places: Chapter 3 is an open-air cinema yard, Chapter 4 has
 levers rather than trolleys, and Chapters 5 and 6 share one region.
 
+Also built: settings (volume, fullscreen, key mapping), credits, three side-jobs, crates
+to carry and throw, Battery's stay command, street boards and installers.
+
 Still to do:
 
 - A real play-through by hand to tune difficulty (ice timer, valve timer, wind strength,
   bandicoots, ghosts, trains)
-- Carrying and throwing objects, and Battery sitting on switches
-- A settings menu with volume; a credits screen
-- An art pass and more sound variety; side-jobs in the town
+- An art pass (walking animations in four directions, more variety in houses and props)
+- More music: one track per chapter instead of one for the whole game
