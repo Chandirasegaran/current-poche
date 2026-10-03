@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
@@ -13,6 +14,8 @@ public class Minmini : NetworkBehaviour
 
     const float NoticeRange = 6.5f, TorchHalfAngle = 48f, LoseRange = 13f, LampRange = 4f;
 
+    static readonly List<Minmini> all = new();
+
     State state;
     Vector3 home, target;
     PlayerController leader;
@@ -23,9 +26,34 @@ public class Minmini : NetworkBehaviour
     {
         bobSeed = Random.value * 10f;
         if (!IsServer) return;
+        all.Add(this);
         home = target = transform.position;
         orbitAngle = Random.value * 360f;
         orbitRadius = Random.Range(0.7f, 1.5f);
+    }
+
+    public override void OnNetworkDespawn() => all.Remove(this);
+
+    // Server: how many minminis are trailing this player right now.
+    public static int Followers(PlayerController player)
+    {
+        int count = 0;
+        foreach (var minmini in all)
+            if (minmini.state == State.Following && minmini.leader == player) count++;
+        return count;
+    }
+
+    // Server: a bandicoot got in among them, and they all bolt.
+    public static void Scatter(PlayerController player)
+    {
+        foreach (var minmini in all)
+        {
+            if (minmini.state != State.Following || minmini.leader != player) continue;
+            minmini.StartWandering();
+            minmini.home = minmini.transform.position + (Vector3)(Random.insideUnitCircle.normalized * 7f);
+            minmini.target = minmini.home;
+            minmini.thinkTimer = 2.5f; // too startled to notice a torch for a moment
+        }
     }
 
     void Update()
@@ -53,7 +81,7 @@ public class Minmini : NetworkBehaviour
                     if (Vector3.Distance(transform.position, target) < 0.2f)
                         target = home + (Vector3)(Random.insideUnitCircle * 2.5f);
                 }
-                Move(target, 0.8f);
+                Move(target, thinkTimer > 1f ? 6f : 0.8f);
                 break;
 
             case State.Following:

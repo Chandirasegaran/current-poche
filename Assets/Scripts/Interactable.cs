@@ -6,6 +6,9 @@ using UnityEngine;
 public class Interactable : MonoBehaviour
 {
     public string verb = "Talk";
+
+    // If set, Quests decides what is said and what happens (see Quests.cs).
+    public string action;
     [TextArea] public string[] lines;
 
     static readonly List<Interactable> all = new();

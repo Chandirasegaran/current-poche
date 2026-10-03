@@ -35,6 +35,7 @@ public static class TownBuilder
     static readonly Color Warm = new(1f, 0.8f, 0.5f);
 
     static readonly List<Rect> blocked = new(); // footprints of buildings, to keep trees off them
+    static readonly List<GameObject> powerLights = new(); // lit windows, off until the power returns
     static GameObject props;
 
     [MenuItem("Current Pochu/Rebuild Town")]
@@ -47,13 +48,14 @@ public static class TownBuilder
         var playerPrefab = BuildPlayerPrefab();
         var minminiPrefab = BuildMinminiPrefab();
         var dogPrefab = BuildDogPrefab();
+        var bandicootPrefab = BuildBandicootPrefab();
+        powerLights.Clear();
 
         props = new GameObject("Props");
         BuildGround();
         BuildKamarajarStreet();
         BuildBazaar();
         BuildTankRoad();
-        BuildExits();
         BuildTrees();
         BuildLighting();
         BuildCamera();
@@ -62,14 +64,40 @@ public static class TownBuilder
         new GameObject("SpawnPoint").transform.position = new Vector3(-9f, 0.5f, 0f);
         var dogSpot = new GameObject("DogSpot").transform;
         dogSpot.position = new Vector3(-5f, 2.8f, 0f);
-        BuildNetwork(playerPrefab, minminiPrefab, dogPrefab, BuildMinminiSpots(), dogSpot);
+        var east = BuildExits();
+        BuildQuestItems();
+        var network = BuildNetwork(playerPrefab, minminiPrefab, dogPrefab, bandicootPrefab, BuildMinminiSpots(), dogSpot);
+        Set(network.GetComponent<WorldSpawner>(), "bandicootPrefab", bandicootPrefab.GetComponent<NetworkObject>());
+        Set(network.GetComponent<WorldSpawner>(), "bandicootSpots", BuildBandicootSpots());
+
+        var quests = new GameObject("Quests");
+        quests.AddComponent<NetworkObject>();
+        var questState = new SerializedObject(quests.AddComponent<Quests>());
+        Fill(questState.FindProperty("powerOn"), powerLights);
+        Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
+        questState.ApplyModifiedPropertiesWithoutUndo();
         new GameObject("GameUI").AddComponent<GameUI>();
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-        AssetDatabase.DeleteAsset("Assets/Scenes/Street.unity");
         AssetDatabase.SaveAssets();
-        return $"built {ScenePath}: {StreetLightCount()} streetlights";
+
+        // Netcode gives every networked object placed in a scene an ID, but it can
+        // only work one out once the scene exists on disk. So load the saved
+        // scene again, let it assign the IDs, and save once more.
+        scene = EditorSceneManager.OpenScene(ScenePath);
+        var ids = new HashSet<uint>();
+        int networked = 0;
+        foreach (var networkObject in Object.FindObjectsByType<NetworkObject>(FindObjectsSortMode.None))
+        {
+            var serialized = new SerializedObject(networkObject);
+            ids.Add(serialized.FindProperty("GlobalObjectIdHash").uintValue);
+            EditorUtility.SetDirty(networkObject);
+            networked++;
+        }
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        return $"built {ScenePath}: {StreetLightCount()} streetlights, {networked} networked objects, {ids.Count} unique ids";
     }
 
     static int StreetLightCount() => Object.FindObjectsByType<StreetLight>(FindObjectsSortMode.None).Length;
@@ -123,8 +151,18 @@ public static class TownBuilder
         networkTransform.AuthorityMode = NetworkTransform.AuthorityModes.Owner; // each player moves themselves
         root.AddComponent<NetworkRigidbody2D>();
 
+        var carry = Child(root, "Carrying", new Vector3(0f, 1.5f, 0f)).AddComponent<SpriteRenderer>();
+        carry.sharedMaterial = GlowMaterial(); // unlit, so you can see it in the dark
+        carry.sortingOrder = GlowOrder;
+
         var controller = new SerializedObject(root.AddComponent<PlayerController>());
         controller.FindProperty("body").objectReferenceValue = body;
+        controller.FindProperty("carryIcon").objectReferenceValue = carry;
+        var items = controller.FindProperty("itemSprites");
+        string[] itemNames = { null, "glasses", "leaf", "ice" };
+        items.arraySize = itemNames.Length;
+        for (int i = 1; i < itemNames.Length; i++)
+            items.GetArrayElementAtIndex(i).objectReferenceValue = Load($"Items/{itemNames[i]}");
         controller.FindProperty("torchPivot").objectReferenceValue = torchPivot.transform;
         var kids = new[] { "kavin", "yazhini", "abdul", "mercy" };
         var looks = controller.FindProperty("looks");
@@ -154,6 +192,21 @@ public static class TownBuilder
         root.AddComponent<NetworkObject>();
         SyncedPosition(root); // moved by the server
         Set(root.AddComponent<Minmini>(), "visual", visual.transform);
+        return SavePrefab(root);
+    }
+
+    static GameObject BuildBandicootPrefab()
+    {
+        var root = new GameObject("Bandicoot");
+        var body = root.AddComponent<SpriteRenderer>();
+        body.sprite = Load("Characters/bandicoot_1");
+        body.spriteSortPoint = SpriteSortPoint.Pivot;
+        root.AddComponent<NetworkObject>();
+        SyncedPosition(root);
+        var bandicoot = root.AddComponent<Bandicoot>();
+        Set(bandicoot, "body", body);
+        Set(bandicoot, "frame1", Load("Characters/bandicoot_1"));
+        Set(bandicoot, "frame2", Load("Characters/bandicoot_2"));
         return SavePrefab(root);
     }
 
@@ -300,24 +353,15 @@ public static class TownBuilder
             Streetlight(x, doorstep - 1.7f, lit: Mathf.Approximately(x, -11f));
 
         // Home: Paati on her doorstep, and the lineman by the one working lamp.
-        Person("Paati", "Characters/paati", new Vector3(-9.3f, 3.5f, 0f),
-            "Paati|No current, no serial, no cricket. Thirty years I have paid that Electricity Board.",
-            "Paati|Go and find Murugesan, kanna. He is hiding by the streetlight, I can see his helmet from here.",
-            "Paati|And take Battery with you. That dog eats more than you do, let him work for it.");
+        Person("Paati", "Characters/paati", new Vector3(-9.3f, 3.5f, 0f), "paati");
 
         Solid(Prop("Cycle", "Props/cycle", new Vector3(-13.4f, 2.7f, 0f)), 1.4f, 0.4f);
-        Person("Lineman Murugesan", "Characters/lineman", new Vector3(-12.1f, 3f, 0f),
-            "Lineman Murugesan|It is NOT the fuse. I checked the fuse. I checked it four times.",
-            "Lineman Murugesan|The lines are empty, thambi. Like somebody drank the current with a straw.",
-            "Lineman Murugesan|See those little glowing bugs? Minminis. Each one is carrying a sip of it.",
-            "Lineman Murugesan|Shine your torch at them and they follow you. Walk three of them to a dead streetlight and it wakes up. Don't ask me why. I only work here.");
+        Person("Lineman Murugesan", "Characters/lineman", new Vector3(-12.1f, 3f, 0f), "lineman");
 
         // The cricket ground behind the eastern houses.
         Solid(Prop("Stumps", "Props/stumps", new Vector3(28f, 17.6f, 0f)), 0.4f, 0.3f);
         Solid(Prop("Stumps", "Props/stumps", new Vector3(28f, 9.6f, 0f)), 0.4f, 0.3f);
-        Person("Umpire Ravi", "Characters/abdul_idle", new Vector3(30.6f, 13.5f, 0f),
-            "Umpire Ravi|We were playing our own final. Then the real final went dark and everybody ran home.",
-            "Umpire Ravi|34 off 24. If the current doesn't come back we will never know. NEVER.");
+        Person("Umpire Ravi", "Characters/abdul_idle", new Vector3(30.6f, 13.5f, 0f), "ravi");
 
         Solid(Prop("Well", "Props/well", new Vector3(-30f, 14f, 0f)), 1.4f, 0.9f);
         blocked.Add(new Rect(-32f, 12f, 4f, 4f));
@@ -328,18 +372,16 @@ public static class TownBuilder
         float doorstep = Streets[0] + 6;
 
         Building("Wedding Hall", "Props/wedding_hall", -46f, doorstep);
-        Person("The Chairman", "Characters/chairman", new Vector3(-41f, doorstep - 0.7f, 0f),
-            "The Chairman|I have a speech at nine. NINE! How will the people see my face in the dark?",
-            "The Chairman|...Don't answer that.");
+        Person("The Chairman", "Characters/chairman", new Vector3(-41f, doorstep - 0.7f, 0f), "chairman");
+        var bananas = Child(props, "Banana Leaves", new Vector3(-46f, doorstep - 0.4f, 0f));
+        Act(bananas, "Take a leaf", "banana");
 
         var stall = Building("Tea Stall", "Props/tea_stall", -34f, doorstep);
         var stove = Child(stall, "Stove", new Vector3(0.85f, 1.25f, 0f));
         Light(stove, new Color(1f, 0.55f, 0.25f), 1.2f, 0.2f, 2.6f);
         stove.AddComponent<FlickerLight>();
         Glow(stall, new Vector3(0.85f, 1.3f, 0f), new Color(1f, 0.6f, 0.3f), 0.35f);
-        Person("Tea Master Selvam", "Characters/teamaster", new Vector3(-31f, doorstep - 0.8f, 0f),
-            "Tea Master Selvam|No current, no mixie, no fridge. But tea? Tea runs on firewood, thambi.",
-            "Tea Master Selvam|Light up the bazaar and your first tea is free. The second one is full price.");
+        Person("Tea Master Selvam", "Characters/teamaster", new Vector3(-31f, doorstep - 0.8f, 0f), "teamaster");
 
         string[] west = { "shop_stores", "shop_tailor", "shop_medical" };
         for (int i = 0; i < west.Length; i++)
@@ -352,7 +394,7 @@ public static class TownBuilder
         var transformer = Prop("Transformer", "Props/transformer", new Vector3(48.5f, doorstep - 0.2f, 0f));
         Solid(transformer, 2.2f, 0.6f);
         transformer.AddComponent<ShadowCaster2D>().selfShadows = false;
-        Talk(transformer, "Read", "|The transformer is stone cold. A sign says: DANGER, 11000 VOLTS. Tonight it should say: DANGER, 0 VOLTS.");
+        Act(transformer, "Inspect", "transformer");
 
         foreach (float x in new[] { -39f, -17f, 11f, 38f })
             Streetlight(x, doorstep - 1.7f, lit: false);
@@ -384,26 +426,88 @@ public static class TownBuilder
     }
 
     // The roads out of town are closed until later chapters.
-    static void BuildExits()
+    // Returns the east barricade, which comes down when the power is restored.
+    static GameObject BuildExits()
     {
-        Barricade(new Vector3(61f, 0f, 0f), true,
-            "|ROAD CLOSED. The line to the paddy fields is down.   (Chapter 2: The Pump-set)");
+        var east = Barricade(new Vector3(61f, 0f, 0f), true,
+            "|ROAD CLOSED. The line to the paddy fields is down. Get the power back on first.");
         Barricade(new Vector3(0f, 37f, 0f), false,
             "|ROAD CLOSED. Beyond here is the old Raja Talkies. Nobody goes there after dark.   (Chapter 3)");
         Barricade(new Vector3(-61f, -24f, 0f), true,
             "|ROAD CLOSED. The goods yard is past the level crossing.   (Chapter 4)");
+        return east;
     }
 
-    static void Barricade(Vector3 centre, bool acrossHorizontalRoad, string sign)
+    static GameObject Barricade(Vector3 centre, bool acrossHorizontalRoad, string sign)
     {
+        var root = Child(props, "Closed Road", centre);
         for (int i = 0; i < 2; i++)
         {
             var offset = acrossHorizontalRoad ? new Vector3(i * 0.5f, -1.9f + i * 2f, 0f) : new Vector3(-1f + i * 2f, 0f, 0f);
-            Talk(Prop("Barricade", "Props/barricade", centre + offset), "Read", sign);
+            var board = Prop("Barricade", "Props/barricade", centre + offset);
+            board.transform.SetParent(root.transform, true);
+            Talk(board, "Read", sign);
         }
-        var wall = new GameObject("Closed Road").AddComponent<BoxCollider2D>();
-        wall.transform.position = centre;
+        var wall = root.AddComponent<BoxCollider2D>();
         wall.size = acrossHorizontalRoad ? new Vector2(0.6f, 5f) : new Vector2(5f, 0.6f);
+        return root;
+    }
+
+    // Everything the four fuse tasks need: the lost glasses, the goat and her
+    // pen, the ice cart, and six cricket balls hidden around town.
+    static void BuildQuestItems()
+    {
+        Pickup("Paati's Glasses", "Items/glasses", new Vector3(-28.3f, 13.3f, 0f), "glasses");
+
+        Vector3[] balls =
+        {
+            new(-34f, 16f, 0f), new(10.5f, -15f, 0f), new(31f, -21.6f, 0f),
+            new(51f, 27.2f, 0f), new(-50.5f, -12f, 0f), new(41f, 15f, 0f),
+        };
+        for (int i = 0; i < balls.Length; i++)
+            Pickup("Cricket Ball", "Items/ball", balls[i], $"ball{i}");
+
+        var cart = Prop("Ice Cart", "Props/ice_cart", new Vector3(48f, -3.9f, 0f));
+        Solid(cart, 1.9f, 0.6f);
+        Act(cart, "Take ice", "icecart");
+
+        var pen = Prop("Goat Pen", "Props/pen", new Vector3(-33f, 20.9f, 0f));
+        var stall = Child(pen, "Stall", new Vector3(0f, -0.8f, 0f)).transform;
+
+        var goat = Prop("Lakshmi", "Characters/goat_idle", new Vector3(12f, -21.4f, 0f));
+        Body(goat, 0.22f);
+        goat.AddComponent<NetworkObject>();
+        SyncedPosition(goat);
+        goat.AddComponent<NetworkRigidbody2D>();
+        var brain = goat.AddComponent<Goat>();
+        Set(brain, "body", goat.GetComponent<SpriteRenderer>());
+        Set(brain, "idle", Load("Characters/goat_idle"));
+        Set(brain, "walk1", Load("Characters/goat_walk1"));
+        Set(brain, "walk2", Load("Characters/goat_walk2"));
+        Set(brain, "pen", stall);
+        Talk(goat, "Pet", "Lakshmi|Meh-eh-eh.", "|(She eyes your pockets for banana leaves.)");
+    }
+
+    // A small thing lying on the ground, with a faint glint so a torch can find it.
+    static void Pickup(string name, string sprite, Vector3 position, string action)
+    {
+        var item = Prop(name, sprite, position);
+        Glow(item, new Vector3(0f, 0.15f, 0f), new Color(1f, 1f, 0.9f, 0.5f), 0.22f);
+        Act(item, "Pick up", action);
+    }
+
+    static Transform BuildBandicootSpots()
+    {
+        var spots = new GameObject("BandicootSpots").transform;
+        var random = new System.Random(5);
+        while (spots.childCount < 9)
+        {
+            float x = random.Next(-52, 52), y = random.Next(-28, 30);
+            if (GroundAt((int)x, (int)y) != "grass") continue;
+            if (Vector2.Distance(new Vector2(x, y), new Vector2(-9f, 0.5f)) < 16f) continue; // a calm start
+            Child(spots.gameObject, "Lair", new Vector3(x, y, 0f));
+        }
+        return spots;
     }
 
     static void BuildTrees()
@@ -470,6 +574,14 @@ public static class TownBuilder
         kolam.GetComponent<SpriteRenderer>().sortingOrder = DecalOrder;
         kolam.transform.localScale = Vector3.one * 0.85f;
         if (index % 3 == 1) Solid(Prop("Tulsi", "Props/tulsi", new Vector3(x + 2.75f, y - 0.35f, 0f)), 0.5f, 0.4f);
+
+        // Lit windows, switched on when the power comes back.
+        var power = Child(house, "Power", Vector3.zero);
+        foreach (float side in new[] { -1.15f, 1.2f })
+            Glow(power, new Vector3(side, 1.65f, 0f), new Color(1f, 0.88f, 0.55f), 0.5f);
+        if (index % 2 == 0) Light(Child(power, "Window Light", new Vector3(0f, 1.2f, 0f)), Warm, 0.9f, 0.5f, 3.2f);
+        power.SetActive(false);
+        powerLights.Add(power);
         return house;
     }
 
@@ -503,11 +615,26 @@ public static class TownBuilder
         Set(streetLight, "glow", glow);
     }
 
-    static void Person(string name, string sprite, Vector3 position, params string[] lines)
+    static void Person(string name, string sprite, Vector3 position, string action)
     {
         var person = Prop(name, sprite, position);
         Solid(person, 0.6f, 0.4f);
-        Talk(person, "Talk", lines);
+        Act(person, "Talk", action);
+    }
+
+    // What is said and what happens is decided by Quests, using this action name.
+    static void Act(GameObject go, string verb, string action)
+    {
+        var interactable = go.AddComponent<Interactable>();
+        interactable.verb = verb;
+        interactable.action = action;
+    }
+
+    static void Fill(SerializedProperty array, List<GameObject> objects)
+    {
+        array.arraySize = objects.Count;
+        for (int i = 0; i < objects.Count; i++)
+            array.GetArrayElementAtIndex(i).objectReferenceValue = objects[i];
     }
 
     static void Talk(GameObject go, string verb, params string[] lines)
@@ -623,7 +750,8 @@ public static class TownBuilder
         renderer.sortingOrder = GlowOrder;
     }
 
-    static void BuildNetwork(GameObject player, GameObject minmini, GameObject dog, Transform minminiSpots, Transform dogSpot)
+    static GameObject BuildNetwork(GameObject player, GameObject minmini, GameObject dog, GameObject bandicoot,
+        Transform minminiSpots, Transform dogSpot)
     {
         var go = new GameObject("NetworkManager");
         var manager = go.AddComponent<NetworkManager>();
@@ -634,7 +762,7 @@ public static class TownBuilder
         const string listPath = "Assets/Prefabs/SpawnablePrefabs.asset";
         AssetDatabase.DeleteAsset(listPath);
         var list = ScriptableObject.CreateInstance<NetworkPrefabsList>();
-        foreach (var prefab in new[] { player, minmini, dog })
+        foreach (var prefab in new[] { player, minmini, dog, bandicoot })
             list.Add(new NetworkPrefab { Prefab = prefab });
         AssetDatabase.CreateAsset(list, listPath);
         manager.NetworkConfig.Prefabs.NetworkPrefabsLists.Clear();
@@ -647,6 +775,7 @@ public static class TownBuilder
         Set(spawner, "dogPrefab", dog.GetComponent<NetworkObject>());
         Set(spawner, "minminiSpots", minminiSpots);
         Set(spawner, "dogSpot", dogSpot);
+        return go;
     }
 
     // ------------------------------------------------------------ helpers

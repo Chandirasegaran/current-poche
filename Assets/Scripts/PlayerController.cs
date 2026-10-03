@@ -23,6 +23,11 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] SpriteRenderer body;
     [SerializeField] Transform torchPivot;
     [SerializeField] KidLook[] looks;
+    [SerializeField] SpriteRenderer carryIcon;
+    [SerializeField] Sprite[] itemSprites; // indexed by Item
+
+    // Things a player can be holding for a task.
+    public enum Item : byte { None, Glasses, Leaf, Ice }
 
     // The player object that belongs to this machine (the camera follows it).
     public static PlayerController Local { get; private set; }
@@ -31,6 +36,13 @@ public class PlayerController : NetworkBehaviour
     public static readonly List<PlayerController> All = new();
 
     public Vector2 Facing => facing.Value;
+
+    // What this player is holding. Only the server may change it.
+    public Item Carrying
+    {
+        get => (Item)carrying.Value;
+        set => carrying.Value = (byte)value;
+    }
 
     // The closest thing this player could talk to or use right now, if any.
     public Interactable Nearby { get; private set; }
@@ -41,7 +53,10 @@ public class PlayerController : NetworkBehaviour
     readonly NetworkVariable<Vector2> facing = new(Vector2.down,
         NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
 
+    readonly NetworkVariable<byte> carrying = new();
+
     Rigidbody2D rb;
+    int walkFrame;
     Vector2 moveInput;
     Vector3 lastPosition;
     float walkClock;
@@ -120,13 +135,19 @@ public class PlayerController : NetworkBehaviour
         if (speed > 0.3f)
         {
             walkClock += Time.deltaTime;
-            body.sprite = (int)(walkClock / 0.14f) % 2 == 0 ? kid.walk1 : kid.walk2;
+            int frame = (int)(walkClock / 0.14f) % 2;
+            body.sprite = frame == 0 ? kid.walk1 : kid.walk2;
+            if (frame != walkFrame && IsOwner) Sfx.Play("step", 0.45f);
+            walkFrame = frame;
         }
         else
         {
             walkClock = 0f;
             body.sprite = kid.idle;
         }
+
+        carryIcon.sprite = itemSprites[(int)Carrying];
+        carryIcon.transform.localPosition = new Vector3(0f, 1.5f + Mathf.Sin(Time.time * 4f) * 0.05f, 0f);
 
         var direction = facing.Value;
         if (Mathf.Abs(direction.x) > 0.01f) body.flipX = direction.x < 0;

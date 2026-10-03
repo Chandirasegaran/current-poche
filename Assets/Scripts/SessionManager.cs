@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Multiplayer;
@@ -19,6 +21,10 @@ public class SessionManager : MonoBehaviour
     public static SessionManager Instance { get; private set; }
 
     public ISession Session { get; private set; }
+
+    // Playing alone needs no internet: the game simply hosts itself.
+    public bool Solo { get; private set; }
+    public bool InGame => Session != null || Solo;
     public bool Ready { get; private set; }
     public bool Busy { get; private set; }
     public string Status { get; private set; } = "Connecting...";
@@ -51,9 +57,20 @@ public class SessionManager : MonoBehaviour
             return;
         }
 
-        // Lets a built game skip the menu: "-host" or "-join <code>".
-        if (HasArg("-host")) await Host();
+        // Lets a built game skip the menu: "-solo", "-host" or "-join <code>".
+        if (HasArg("-solo")) PlaySolo();
+        else if (HasArg("-host")) await Host();
         else if (ArgValue("-join") is string code) await Join(code);
+    }
+
+    public void PlaySolo()
+    {
+        if (Busy || InGame) return;
+        var network = NetworkManager.Singleton;
+        // A random local port, so two copies on one computer don't collide.
+        network.GetComponent<UnityTransport>().SetConnectionData("127.0.0.1", (ushort)UnityEngine.Random.Range(20000, 60000));
+        Solo = network.StartHost();
+        Status = Solo ? "" : "Could not start the game.";
     }
 
     public Task Host()
@@ -61,7 +78,7 @@ public class SessionManager : MonoBehaviour
         return Run("Creating game...", async () =>
         {
             var options = new SessionOptions { MaxPlayers = MaxPlayers }.WithRelayNetwork();
-            Session = await MultiplayerService.Instance.CreateSessionAsync(options);
+            Watch(await MultiplayerService.Instance.CreateSessionAsync(options));
             Debug.Log("JOIN CODE: " + Session.Code);
         });
     }
@@ -70,12 +87,26 @@ public class SessionManager : MonoBehaviour
     {
         return Run("Joining...", async () =>
         {
-            Session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant());
+            Watch(await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant()));
         });
+    }
+
+    // If the host quits or we get dropped, go back to the title screen.
+    void Watch(ISession session)
+    {
+        Session = session;
+        session.RemovedFromSession += () => { if (Session == session) Session = null; };
+        session.Deleted += () => { if (Session == session) Session = null; };
     }
 
     public Task Leave()
     {
+        if (Solo)
+        {
+            NetworkManager.Singleton.Shutdown();
+            Solo = false;
+            return Task.CompletedTask;
+        }
         return Run("Leaving...", async () =>
         {
             var leaving = Session;

@@ -72,7 +72,12 @@ public class StreetLight : NetworkBehaviour
     void OnChargeChanged(int before, int now)
     {
         Refresh();
-        if (before < Needed && now >= Needed) StartCoroutine(Flash());
+        if (now > before) Sfx.PlayAt("minmini", transform.position);
+        if (before < Needed && now >= Needed)
+        {
+            Sfx.PlayAt("lamp", transform.position);
+            StartCoroutine(Flash());
+        }
     }
 
     void Refresh()

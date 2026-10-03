@@ -283,6 +283,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Interactable
   verb: Pet
+  action: 
   lines:
   - Battery|Woof!
   - '|(He looks at your torch like it might be a snack.)'

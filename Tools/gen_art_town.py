@@ -518,8 +518,96 @@ def make_ui():
     save(bulb(False), *ui, "bulb_off.png")
 
 
+# ---------------------------------------------------------------- quest art
+
+def goat(pose):
+    img = Image.new("RGBA", (20, 14), CLEAR)
+    d = ImageDraw.Draw(img)
+    coat, patch = rgb("#efe9dc"), rgb("#4a4038")
+    d.rectangle([3, 5, 13, 9], fill=coat)
+    d.rectangle([5, 5, 8, 7], fill=patch)
+    d.rectangle([12, 2, 16, 6], fill=coat)  # head
+    d.rectangle([16, 4, 17, 6], fill=rgb("#d9cdb8"))
+    img.putpixel((15, 3), rgb("#17131f"))
+    d.line([12, 0, 13, 2], fill=rgb("#8f867a"))  # horns
+    d.line([14, 0, 14, 2], fill=rgb("#8f867a"))
+    d.line([16, 7, 16, 8], fill=coat)  # beard
+    d.line([2, 4, 3, 5], fill=coat)  # tail
+    legs = {"idle": [(4, 3), (6, 3), (11, 3), (13, 3)], "walk1": [(3, 3), (7, 2), (10, 3), (14, 2)],
+            "walk2": [(5, 2), (6, 3), (12, 2), (13, 3)]}[pose]
+    for i, (x, length) in enumerate(legs):
+        d.line([x, 10, x, 9 + length], fill=patch if i % 2 else coat)
+    return outlined(img)
+
+
+def bandicoot(frame):
+    img = Image.new("RGBA", (16, 8), CLEAR)
+    d = ImageDraw.Draw(img)
+    fur = rgb("#4b4652")
+    d.ellipse([3, 1, 12, 6], fill=fur)
+    d.rectangle([11, 3, 14, 5], fill=fur)
+    img.putpixel((15, 4), rgb("#d98c8c"))  # nose
+    img.putpixel((12, 3), rgb("#ff5a4a"))  # eye
+    d.rectangle([10, 0, 11, 1], fill=shade(fur, 1.4))  # ear
+    d.line([0, 4 if frame else 2, 3, 4], fill=rgb("#b98d8d"))  # tail
+    for x in ((4, 9) if frame else (5, 10)):
+        d.line([x, 6, x, 7], fill=shade(fur, 0.7))
+    return outlined(img)
+
+
+def small(pixels, palette):
+    img = Image.new("RGBA", (len(pixels[0]), len(pixels)), CLEAR)
+    for y, row in enumerate(pixels):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), rgb(palette[ch]))
+    return outlined(img)
+
+
+def ice_cart():
+    img = Image.new("RGBA", (34, 26), CLEAR)
+    d = ImageDraw.Draw(img)
+    box = rgb("#5b9bd5")
+    d.rectangle([2, 2, 31, 17], fill=box)
+    d.rectangle([2, 2, 31, 4], fill=shade(box, 1.3))
+    d.rectangle([2, 14, 31, 17], fill=shade(box, 0.75))
+    label = pixel_text("ICE", 9, rgb("#ffffff"))
+    img.alpha_composite(label, (17 - label.width // 2, 6))
+    for cx in (8, 25):
+        d.ellipse([cx - 4, 16, cx + 4, 24], fill=rgb("#2a2630"))
+        d.ellipse([cx - 2, 18, cx + 2, 22], fill=rgb("#8b93a1"))
+    return outlined(img)
+
+
+def pen():
+    img = Image.new("RGBA", (40, 18), CLEAR)
+    d = ImageDraw.Draw(img)
+    wood = rgb("#8b6c4c")
+    for x in range(1, 40, 6):
+        d.rectangle([x, 2, x + 1, 17], fill=wood)
+        img.putpixel((x, 2), shade(wood, 1.3))
+    d.rectangle([0, 6, 39, 7], fill=shade(wood, 1.15))
+    d.rectangle([0, 12, 39, 13], fill=shade(wood, 0.85))
+    return outlined(img)
+
+
+def make_quest_art():
+    for pose in ("idle", "walk1", "walk2"):
+        save(goat(pose), "Characters", f"goat_{pose}.png")
+    save(bandicoot(0), "Characters", "bandicoot_1.png")
+    save(bandicoot(1), "Characters", "bandicoot_2.png")
+    save(ice_cart(), "Props", "ice_cart.png")
+    save(pen(), "Props", "pen.png")
+    save(small(["bbb.bbb", "bgb.bgb", "bbbbbbb"], {"b": "#3a2a1c", "g": "#cfe3ea"}), "Items", "glasses.png")
+    save(small(["..gG.", ".gGGg", "gGGg.", "GGg..", "s...."], {"g": "#57a84f", "G": "#3c8a44", "s": "#2c6a37"}), "Items", "leaf.png")
+    save(small(["wiiiw", "iiwii", "iwiii", "iiiiw", "wiiii"], {"i": "#a8d8f0", "w": "#f2fbff"}), "Items", "ice.png")
+    save(small([".rr.", "rwrr", "rrwr", ".rr."], {"r": "#c0392b", "w": "#f3ead7"}), "Items", "ball.png")
+    save(small(["mmmm", "cccc", "cyyc", "cccc", "cyyc", "cccc", "mmmm"], {"m": "#aab0c0", "c": "#f3ead7", "y": "#e9b63a"}), "Items", "fuse.png")
+
+
 def main():
     make_tiles()
     make_props()
     make_characters()
     make_ui()
+    make_quest_art()

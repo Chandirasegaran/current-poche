@@ -29,16 +29,12 @@ public class GameUI : MonoBehaviour
         "Paati|Aiyo. Right in the last overs. Kanna, take the torch and go see what that Murugesan has done now.",
     };
 
-    static readonly string[] Ending =
-    {
-        "Lineman Murugesan|Look at that! Every streetlight in the ward is glowing. You did in one night what I couldn't do in a week.",
-        "Lineman Murugesan|But the houses are still dark. The main line is dead, and it runs east, through the paddy fields...",
-        "Lineman Murugesan|Get some rest. Tomorrow we follow the wires.   (Chapter 2 is coming soon.)",
-    };
-
     CanvasScaler scaler;
     GameObject title, hud, dialogue, pause, toast;
-    Button hostButton, joinButton;
+    Button soloButton, hostButton, joinButton;
+    GameObject questPanel;
+    PixelLabel questLabel, iceLabel;
+    int blipped;
     PixelLabel statusLabel, codeEntryLabel, codeLabel, playersLabel, lightsLabel, hintLabel, toastLabel;
     PixelLabel speakerLabel, lineLabel, moreLabel;
     Image bulbIcon;
@@ -55,6 +51,7 @@ public class GameUI : MonoBehaviour
     {
         Instance = this;
         Build();
+        Sfx.Begin();
     }
 
     void OnEnable()
@@ -74,7 +71,7 @@ public class GameUI : MonoBehaviour
         scaler.scaleFactor = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 216f));
 
         var sessions = SessionManager.Instance;
-        bool inGame = sessions != null && sessions.Session != null;
+        bool inGame = sessions != null && sessions.InGame;
         title.SetActive(!inGame);
         hud.SetActive(inGame);
 
@@ -90,6 +87,7 @@ public class GameUI : MonoBehaviour
         lines.Clear();
 
         bool usable = sessions != null && sessions.Ready && !sessions.Busy;
+        soloButton.interactable = sessions != null && !sessions.Busy; // solo works offline too
         hostButton.interactable = usable;
         joinButton.interactable = usable && codeEntry.Length > 0;
         statusLabel.Text = sessions != null ? sessions.Status : "";
@@ -115,8 +113,8 @@ public class GameUI : MonoBehaviour
     void UpdateGame(SessionManager sessions)
     {
         var session = sessions.Session;
-        codeLabel.Text = session.Code;
-        playersLabel.Text = $"{session.PlayerCount} of {session.MaxPlayers} players";
+        codeLabel.Text = session != null ? session.Code : "SOLO";
+        playersLabel.Text = session != null ? $"{session.PlayerCount} of {session.MaxPlayers} players" : "Esc: menu";
 
         int lit = 0;
         foreach (var lamp in StreetLight.All)
@@ -133,12 +131,23 @@ public class GameUI : MonoBehaviour
         {
             introShown = true;
             Say(Intro);
-            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.";
+            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nTab hides the task list.";
         }
-        else if (!celebrated && total > 0 && lit == total && !dialogue.activeSelf)
+        else if (!celebrated && total > 0 && lit == total)
         {
             celebrated = true;
-            Say(Ending);
+            Sfx.Play("quest");
+            Toast("Every streetlight is lit!\nNow the transformer needs four fuses.");
+        }
+
+        var quests = Quests.Instance;
+        if (keyboard.tabKey.wasPressedThisFrame) questPanel.SetActive(!questPanel.activeSelf);
+        if (quests != null)
+        {
+            questLabel.Text = quests.LogText();
+            float ice = quests.IceSecondsLeft;
+            iceLabel.gameObject.SetActive(ice > 0f);
+            if (ice > 0f) iceLabel.Text = $"ICE MELTS IN {Mathf.CeilToInt(ice)}";
         }
 
         if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf)
@@ -149,13 +158,20 @@ public class GameUI : MonoBehaviour
         bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
 
         if (dialogue.activeSelf) UpdateDialogue(confirm || click);
-        else if (confirm && !pause.activeSelf && player.Nearby != null) Say(player.Nearby.lines);
+        else if (confirm && !pause.activeSelf && player.Nearby != null) Interact(player.Nearby, player);
 
         var nearby = dialogue.activeSelf || pause.activeSelf ? null : player.Nearby;
         hintLabel.gameObject.SetActive(nearby != null);
         if (nearby != null) hintLabel.Text = $"[E] {nearby.verb}";
 
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    void Interact(Interactable target, PlayerController player)
+    {
+        if (target.verb == "Pet") Sfx.Play("bark", 0.8f);
+        bool scripted = !string.IsNullOrEmpty(target.action) && Quests.Instance != null;
+        Say(scripted ? Quests.Instance.Talk(target.action, player) : target.lines);
     }
 
     // ------------------------------------------------------------ dialogue
@@ -188,6 +204,7 @@ public class GameUI : MonoBehaviour
         speakerLabel.Text = parts.Length > 1 ? parts[0] : "";
         currentLine = parts[^1];
         revealed = 0f;
+        blipped = 0;
         lineLabel.Text = "";
         dialogue.SetActive(true);
     }
@@ -201,6 +218,11 @@ public class GameUI : MonoBehaviour
 
         revealed = Mathf.Min(currentLine.Length, revealed + Time.deltaTime * 55f);
         lineLabel.Text = currentLine[..(int)revealed];
+        if ((int)revealed >= blipped + 3 && revealed < currentLine.Length)
+        {
+            blipped = (int)revealed;
+            Sfx.Play("blip", 0.5f);
+        }
         moreLabel.gameObject.SetActive(revealed >= currentLine.Length && Time.unscaledTime % 0.8f < 0.5f);
     }
 
@@ -238,11 +260,12 @@ public class GameUI : MonoBehaviour
 
         var logo = Box(title.transform, "logo", top, top, new Vector2(0, -8), Vector2.zero);
         ActualSize(logo);
-        Label(title.transform, "a power-cut adventure for 1 to 4 friends", top, top, new Vector2(0, -92), Pale);
+        Label(title.transform, "a power-cut adventure for 1 to 4 friends", top, top, new Vector2(0, -90), Pale);
 
-        hostButton = MakeButton(title.transform, "HOST A GAME", top, new Vector2(0, -112), new Vector2(136, 24),
+        soloButton = MakeButton(title.transform, "PLAY SOLO", top, new Vector2(0, -107), new Vector2(136, 22),
+            () => SessionManager.Instance.PlaySolo());
+        hostButton = MakeButton(title.transform, "HOST ONLINE", top, new Vector2(0, -132), new Vector2(136, 22),
             () => _ = SessionManager.Instance.Host());
-        Label(title.transform, "or join a friend with their code", top, top, new Vector2(0, -142), Dim);
         var field = Box(title.transform, "field_9s", top, top, new Vector2(-29, -157), new Vector2(78, 24));
         codeEntryLabel = Label(field.transform, "CODE", centre, centre, new Vector2(0, -1), Dim);
         joinButton = MakeButton(title.transform, "JOIN", top, new Vector2(41, -157), new Vector2(54, 24),
@@ -257,14 +280,18 @@ public class GameUI : MonoBehaviour
         codeLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(44, -4), Yellow);
         playersLabel = Label(codePanel.transform, "", topLeft, topLeft, new Vector2(8, -18), Pale);
 
-        var lightsPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -6), new Vector2(66, 22));
+        var lightsPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -6), new Vector2(80, 22));
         bulbIcon = Box(lightsPanel.transform, "bulb_off", topLeft, topLeft, new Vector2(7, -4), Vector2.zero);
         ActualSize(bulbIcon);
         lightsLabel = Label(lightsPanel.transform, "", topLeft, topLeft, new Vector2(24, -4), Pale);
 
+        questPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -32), new Vector2(158, 92)).gameObject;
+        questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(8, -5), Pale);
+        iceLabel = Label(hud.transform, "", top, top, new Vector2(0, -8), new Color(0.6f, 0.9f, 1f));
+
         hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 70), Yellow);
 
-        toast = Box(hud.transform, "panel_9s", top, top, new Vector2(0, -46), new Vector2(280, 36)).gameObject;
+        toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 86), new Vector2(262, 48)).gameObject;
         toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale);
         toast.SetActive(false);
 
@@ -348,6 +375,7 @@ public class GameUI : MonoBehaviour
         colours.disabledColor = new Color(0.55f, 0.55f, 0.6f, 0.7f);
         colours.fadeDuration = 0.05f;
         button.colors = colours;
+        button.onClick.AddListener(() => Sfx.Play("click"));
         button.onClick.AddListener(onClick);
 
         var half = new Vector2(0.5f, 0.5f);
