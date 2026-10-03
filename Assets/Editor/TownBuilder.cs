@@ -498,6 +498,7 @@ public static class TownBuilder
             string ground = GroundAt(x, y);
             (Blocks(ground) ? wet : tilemap).SetTile(new Vector3Int(x, y, 0), TileFor($"{ground}_{variant}"));
         }
+        DrawMap();
         wet.GetComponent<TilemapCollider2D>().ProcessTilemapChanges();
         var merged = wet.GetComponent<CompositeCollider2D>();
         merged.geometryType = CompositeCollider2D.GeometryType.Polygons; // solid all the way through
@@ -511,6 +512,27 @@ public static class TownBuilder
         blocked.Add(new Rect(Pitch.x - 6, Pitch.y - 2, Pitch.width + 12, Pitch.height + 4));
         blocked.Add(new Rect(Godown.xMin - 2, Godown.yMin - 4, Godown.width + 4, Godown.height + 6));
         blocked.Add(new Rect(Store.xMin - 3, Store.yMin - 4, Store.width + 6, Store.height + 6));
+    }
+
+    // The picture for the in-game map: one pixel per tile, coloured by the ground.
+    static void DrawMap()
+    {
+        var colours = new Dictionary<string, Color32>
+        {
+            ["road"] = new(96, 100, 120, 255), ["dirt"] = new(140, 110, 78, 255), ["grass"] = new(40, 78, 44, 255),
+            ["cement"] = new(150, 146, 136, 255), ["water"] = new(52, 104, 160, 255), ["paddy"] = new(50, 92, 88, 255),
+            ["wall"] = new(138, 74, 60, 255), ["steps"] = new(165, 156, 142, 255), ["pitch"] = new(184, 155, 110, 255),
+            ["gravel"] = new(104, 100, 94, 255), ["rail"] = new(200, 204, 214, 255), ["rock"] = new(62, 58, 72, 255),
+            ["cliff"] = new(30, 26, 38, 255),
+        };
+        int width = FieldsEnd - WestEnd, height = NorthEnd + HalfHeight;
+        var map = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        for (int x = 0; x < width; x++)
+        for (int y = 0; y < height; y++)
+            map.SetPixel(x, y, colours[GroundAt(x + WestEnd, y - HalfHeight)]);
+        System.IO.File.WriteAllBytes("Assets/Resources/UI/map.png", map.EncodeToPNG());
+        Object.DestroyImmediate(map);
+        AssetDatabase.ImportAsset("Assets/Resources/UI/map.png");
     }
 
     // ------------------------------------------------------------ districts

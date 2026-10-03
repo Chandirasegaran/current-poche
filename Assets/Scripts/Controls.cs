@@ -55,10 +55,38 @@ public static class Controls
         return keyboard != null && keyboard[key].isPressed;
     }
 
-    // Movement as a direction, from the keys (remappable ones or arrows) or the touch stick.
+    // The controller buttons that do the same as each action's key.
+    static bool Pad(GameAction action, bool held)
+    {
+        var pad = Gamepad.current;
+        if (pad == null) return false;
+        var button = action switch
+        {
+            GameAction.Interact => pad.buttonSouth,
+            GameAction.Whistle => pad.buttonWest,
+            GameAction.Tasks => pad.selectButton,
+            _ => null,
+        };
+        return button != null && (held ? button.isPressed : button.wasPressedThisFrame);
+    }
+
+    // Opening the menu: Esc, or Start on a controller.
+    public static bool MenuPressed() =>
+        Tapped(Key.Escape) || (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame);
+
+    // Opening the map: M, or the top face button on a controller.
+    public static bool MapPressed() =>
+        Tapped(Key.M) || (Gamepad.current != null && Gamepad.current.buttonNorth.wasPressedThisFrame);
+
+    // Movement as a direction, from the keys (remappable ones or arrows), a controller, or the touch stick.
     public static Vector2 Movement()
     {
         var move = TouchInput.Active ? TouchInput.Move : Vector2.zero;
+        if (Gamepad.current != null)
+        {
+            var stick = Gamepad.current.leftStick.ReadValue() + Gamepad.current.dpad.ReadValue();
+            if (stick.magnitude > 0.25f) move += stick;
+        }
         if (Held(GameAction.Up) || Down(Key.UpArrow)) move.y += 1;
         if (Held(GameAction.Down) || Down(Key.DownArrow)) move.y -= 1;
         if (Held(GameAction.Left) || Down(Key.LeftArrow)) move.x -= 1;
@@ -69,12 +97,12 @@ public static class Controls
     public static bool Held(GameAction action)
     {
         var keyboard = Keyboard.current;
-        return keyboard != null && keyboard[Get(action)].isPressed;
+        return (keyboard != null && keyboard[Get(action)].isPressed) || Pad(action, true);
     }
 
     public static bool Pressed(GameAction action)
     {
         var keyboard = Keyboard.current;
-        return keyboard != null && keyboard[Get(action)].wasPressedThisFrame;
+        return (keyboard != null && keyboard[Get(action)].wasPressedThisFrame) || Pad(action, false);
     }
 }

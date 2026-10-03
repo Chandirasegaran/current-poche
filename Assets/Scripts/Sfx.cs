@@ -20,6 +20,12 @@ public static class Sfx
         GameSettings.Apply();
     }
 
+    static string ambienceNow = "ambience", ambienceWanted = "ambience";
+    static float ambienceFade = 1f, soundLevelNow = 0.8f;
+
+    // The background night sounds change with the place, like the music.
+    public static void SetAmbience(string name) => ambienceWanted = name;
+
     static string track = "music_town", wanted = "music_town";
     static float fade = 1f, musicLevelNow = 0.7f;
 
@@ -42,6 +48,19 @@ public static class Sfx
         }
         else fade = Mathf.Min(1f, fade + Time.unscaledDeltaTime * 1.5f);
         music.volume = 0.42f * musicLevelNow * Mathf.Clamp01(fade);
+
+        if (ambienceWanted != ambienceNow)
+        {
+            ambienceFade -= Time.unscaledDeltaTime * 1.5f;
+            if (ambienceFade <= 0f)
+            {
+                ambienceNow = ambienceWanted;
+                ambience.clip = Clip(ambienceNow);
+                ambience.Play();
+            }
+        }
+        else ambienceFade = Mathf.Min(1f, ambienceFade + Time.unscaledDeltaTime * 1.5f);
+        ambience.volume = 0.55f * soundLevelNow * Mathf.Clamp01(ambienceFade);
     }
 
     // Both run from 0 (silent) to 1 (full).
@@ -49,6 +68,7 @@ public static class Sfx
     {
         if (effects == null) return;
         musicLevelNow = musicLevel;
+        soundLevelNow = soundLevel;
         music.volume = 0.42f * musicLevel;
         ambience.volume = 0.55f * soundLevel;
         effects.volume = soundLevel;

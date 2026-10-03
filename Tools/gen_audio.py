@@ -96,6 +96,8 @@ def bell(note, seconds=0.5, volume=1.0):
 
 def effects():
     save("step", noise(0.045, smooth=0.75, seed=3), 0.5)
+    save("step_grass", noise(0.07, smooth=0.9, seed=4), 0.4)
+    save("step_gravel", noise(0.05, smooth=0.3, seed=5) + noise(0.03, 0.6, 0.2, 6), 0.45)
     save("blip", tone(760, 0.03, square, release=0.02), 0.25)
     save("click", tone(520, 0.07, triangle, end_freq=900), 0.6)
     save("minmini", tone(1300, 0.12, sine, end_freq=2000, release=0.09), 0.5)
@@ -151,6 +153,39 @@ def ambience():
     save("ambience", out, 0.5)
 
 
+def region_ambience():
+    """A different night sound for each part of the world. Each is an 8 second loop."""
+    seconds = 8
+    rnd = random.Random(14)
+
+    # The fields: frogs.
+    out = [s * 0.03 for s in noise(seconds, 1.0, 0.97, 41)]
+    t = 0.3
+    while t < seconds - 0.5:
+        pitch = rnd.choice([180, 210, 150])
+        for k in range(rnd.choice([2, 3])):
+            add(out, tone(pitch, 0.09, lambda p: square(p) * 0.5 + sine(p * 2) * 0.5, attack=0.01, release=0.05, end_freq=pitch * 1.25, volume=0.16), t + k * 0.14)
+        t += rnd.uniform(0.5, 1.3)
+    save("ambience_fields", out, 0.5)
+
+    # The hills: wind that rises and falls.
+    wind = noise(seconds, 1.0, 0.96, 42)
+    save("ambience_hills", [w * (0.35 + 0.3 * math.sin(2 * math.pi * i / len(wind)) ** 2) / max(0.05, 1 - i / len(wind)) * (1 - i / len(wind))
+                             for i, w in enumerate(wind)], 0.5)
+
+    # The cinema: almost silent, with the odd creak.
+    out = [s * 0.02 for s in noise(seconds, 1.0, 0.985, 43)]
+    for at in (1.4, 4.9, 6.6):
+        add(out, tone(rnd.choice([310, 260]), 0.35, triangle, attack=0.1, release=0.2, end_freq=220, volume=0.05), at)
+    save("ambience_cinema", out, 0.5)
+
+    # The goods yard: a low engine rumble and a far-off clank.
+    out = [0.06 * sine(48 * i / RATE) * (0.8 + 0.2 * sine(3 * i / RATE)) for i in range(int(RATE * seconds))]
+    for at in (2.2, 5.7):
+        add(out, bell("G4", 0.3, 0.06), at)
+    save("ambience_yard", out, 0.5)
+
+
 def music(name, seed, tempo, scale, roots, lead=0.42, pulse=None, shimmer=0.25):
     """A looping theme. Each part of the world gets its own scale, speed and feel."""
     beat = 60 / tempo
@@ -204,5 +239,6 @@ def all_music():
 if __name__ == "__main__":
     effects()
     ambience()
+    region_ambience()
     all_music()
     print("audio written to", OUT)

@@ -206,6 +206,23 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    static UnityEngine.Tilemaps.Tilemap ground;
+
+    // Which footstep to play, from the kind of ground under this player's feet.
+    string StepSound()
+    {
+        if (ground == null)
+        {
+            var found = GameObject.Find("Grid/Ground");
+            if (found != null) ground = found.GetComponent<UnityEngine.Tilemaps.Tilemap>();
+        }
+        var tile = ground != null ? ground.GetTile(ground.WorldToCell(transform.position)) : null;
+        string kind = tile != null ? tile.name : "";
+        if (kind.StartsWith("grass")) return "step_grass";
+        if (kind.StartsWith("gravel") || kind.StartsWith("rail") || kind.StartsWith("dirt")) return "step_gravel";
+        return "step";
+    }
+
     // Runs for every player on every machine, so remote players animate too.
     void Animate()
     {
@@ -226,7 +243,7 @@ public class PlayerController : NetworkBehaviour
             walkClock += Time.deltaTime;
             int frame = (int)(walkClock / 0.14f) % 2;
             body.sprite = frame == 0 ? stepA : stepB;
-            if (frame != walkFrame && IsOwner) Sfx.Play("step", 0.45f);
+            if (frame != walkFrame && IsOwner) Sfx.Play(StepSound(), 0.45f);
             walkFrame = frame;
         }
         else

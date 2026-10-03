@@ -15,7 +15,8 @@ public class GameUI : MonoBehaviour
 
     // True while the player should not be walking around.
     public static bool BlocksInput => Instance != null &&
-        (Instance.dialogue.activeSelf || Instance.pause.activeSelf || Instance.settings.activeSelf || Instance.summary.activeSelf);
+        (Instance.dialogue.activeSelf || Instance.pause.activeSelf || Instance.settings.activeSelf
+         || Instance.summary.activeSelf || Instance.map.activeSelf);
 
     static readonly Color Yellow = new(1f, 0.86f, 0.42f);
     static readonly Color Pale = new(0.82f, 0.86f, 0.98f);
@@ -36,7 +37,9 @@ public class GameUI : MonoBehaviour
     GameObject eraseButton, settings, credits, touchControls, quitButton;
     RectTransform stickBase, stickKnob;
     TouchScreenKeyboard softKeyboard;
-    GameObject card, summary;
+    GameObject card, summary, map, resumeButton;
+    readonly List<RectTransform> mapDots = new();
+    RectTransform mapImage;
     PixelLabel cardTitle, cardLine, summaryText, kolamLabel;
     CanvasGroup cardFade;
     float cardTimer;
@@ -86,20 +89,31 @@ public class GameUI : MonoBehaviour
 
         // Each part of the world has its own music.
         var here = PlayerController.Local != null ? (Vector2)PlayerController.Local.transform.position : Vector2.zero;
-        Sfx.SetTrack(here.x >= 66f ? "music_fields"
-            : here.x < -65f ? (here.y >= -5f ? "music_hills" : "music_yard")
-            : here.y >= 40f ? "music_cinema" : "music_town");
+        string place = here.x >= 66f ? "fields"
+            : here.x < -65f ? (here.y >= -5f ? "hills" : "yard")
+            : here.y >= 40f ? "cinema" : "town";
+        Sfx.SetTrack("music_" + place);
+        Sfx.SetAmbience(place == "town" ? "ambience" : "ambience_" + place);
         Sfx.Tick();
 
         var keys = Keyboard.current;
         UpdateTouch(keys);
         if (Controls.Tapped(Key.F11)) GameSettings.Fullscreen = !GameSettings.Fullscreen;
         if (settings.activeSelf) UpdateSettings(keys);
-        if (Controls.Tapped(Key.Escape) && (settings.activeSelf || credits.activeSelf))
+        if (Controls.MenuPressed() && (settings.activeSelf || credits.activeSelf || map.activeSelf))
         {
             settings.SetActive(false);
             credits.SetActive(false);
+            map.SetActive(false);
             return;
+        }
+        UpdateMap();
+
+        // With a controller and no mouse, something has to be highlighted for the buttons to work.
+        if (Gamepad.current != null && EventSystem.current.currentSelectedGameObject == null)
+        {
+            var first = pause.activeSelf ? resumeButton : title.activeSelf && !settings.activeSelf ? soloButton.gameObject : null;
+            if (first != null) EventSystem.current.SetSelectedGameObject(first);
         }
 
         var sessions = SessionManager.Instance;
@@ -201,7 +215,7 @@ public class GameUI : MonoBehaviour
                 return;
             }
             Say(Intro);
-            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nEsc opens the menu and settings.";
+            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nM opens the map. Esc opens the menu.";
         }
         else if (!celebrated && total > 0 && lit == total)
         {
@@ -230,7 +244,7 @@ public class GameUI : MonoBehaviour
             if (banner.Length > 0) iceLabel.Text = banner;
         }
 
-        if (Controls.Tapped(Key.Escape) && !dialogue.activeSelf && !settings.activeSelf)
+        if (Controls.MenuPressed() && !dialogue.activeSelf && !settings.activeSelf)
             pause.SetActive(!pause.activeSelf);
 
         if (settings.activeSelf) return;
@@ -249,6 +263,66 @@ public class GameUI : MonoBehaviour
         // Messages sit at the bottom of the screen, or just above the dialogue box.
         ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 62f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    // ------------------------------------------------------------ the map
+
+    // The map picture is drawn by TownBuilder: one pixel per tile, starting
+    // from this corner of the world.
+    const float MapWest = -150f, MapSouth = -40f;
+
+    void UpdateMap()
+    {
+        bool playing = hud.activeSelf && !dialogue.activeSelf && !pause.activeSelf && !settings.activeSelf && !summary.activeSelf;
+        if (playing && (Controls.MapPressed() || TouchInput.Map)) map.SetActive(!map.activeSelf);
+        if (!playing) map.SetActive(false);
+        if (!map.activeSelf) return;
+
+        // A dot for every player (yours is yellow and blinks) and one for Battery.
+        int used = 0;
+        foreach (var player in PlayerController.All)
+        {
+            bool mine = player == PlayerController.Local;
+            Dot(used++, player.transform.position, mine ? Yellow : Color.white, mine && Time.unscaledTime % 0.6f < 0.3f ? 5 : 3);
+        }
+        if (Dog.Instance != null) Dot(used++, Dog.Instance.transform.position, new Color(0.85f, 0.55f, 0.3f), 2);
+        foreach (var lamp in StreetLight.All)
+            Dot(used++, lamp.transform.position, lamp.IsLit ? new Color(1f, 0.9f, 0.5f) : new Color(0.35f, 0.38f, 0.5f), 1);
+        for (int i = used; i < mapDots.Count; i++) mapDots[i].gameObject.SetActive(false);
+    }
+
+    void Dot(int index, Vector3 world, Color colour, int size)
+    {
+        while (mapDots.Count <= index)
+        {
+            var made = Box(mapImage, null, Vector2.zero, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one);
+            mapDots.Add(made.rectTransform);
+        }
+        var dot = mapDots[index];
+        dot.gameObject.SetActive(true);
+        dot.anchoredPosition = new Vector2(world.x - MapWest, world.y - MapSouth);
+        dot.sizeDelta = Vector2.one * size;
+        dot.GetComponent<Image>().color = colour;
+    }
+
+    void BuildMap(Transform canvas)
+    {
+        var centre = new Vector2(0.5f, 0.5f);
+        map = Backdrop(canvas, "Map");
+        var picture = Box(map.transform, "map", centre, centre, new Vector2(0, -4), Vector2.zero);
+        ActualSize(picture);
+        mapImage = picture.rectTransform;
+        Label(map.transform, "MINNALPATTI", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -6), Yellow);
+
+        // Place names, at their spot in the world.
+        (string name, float x, float y)[] names =
+        {
+            ("Town", 0f, 12f), ("Fields", 105f, 10f), ("Raja Talkies", 0f, 75f),
+            ("Goods Yard", -110f, -22f), ("Hills", -110f, 40f), ("Dam", -110f, 80f),
+        };
+        foreach (var (name, x, y) in names)
+            Label(mapImage, name, Vector2.zero, centre, new Vector2(x - MapWest, y - MapSouth), Pale, 0, true);
+        map.SetActive(false);
     }
 
     // ------------------------------------------------------------ chapter cards
@@ -350,7 +424,7 @@ public class GameUI : MonoBehaviour
     void LateUpdate()
     {
         // Button taps last exactly one frame.
-        TouchInput.Use = TouchInput.Whistle = TouchInput.Emote = false;
+        TouchInput.Use = TouchInput.Whistle = TouchInput.Emote = TouchInput.Map = false;
     }
 
     void BuildTouchControls(Transform canvas)
@@ -367,6 +441,7 @@ public class GameUI : MonoBehaviour
         var edge = new Vector2(0f, 0.5f); // left edge, clear of the task list on the right
         TouchButton("MENU", edge, new Vector2(28, 16), new Vector2(46, 20), () => pause.SetActive(true));
         TouchButton("TASKS", edge, new Vector2(28, -10), new Vector2(46, 20), () => showTasks = !showTasks);
+        TouchButton("MAP", edge, new Vector2(28, -36), new Vector2(46, 20), () => TouchInput.Map = true);
         touchControls.SetActive(false);
     }
 
@@ -642,7 +717,7 @@ public class GameUI : MonoBehaviour
         pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 138)).gameObject;
         MakeButton(pause.transform, "QUIT GAME", top, new Vector2(0, -104), new Vector2(120, 22), Application.Quit);
         Label(pause.transform, "PAUSED", top, top, new Vector2(0, -8), Yellow);
-        MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 22), () => pause.SetActive(false));
+        resumeButton = MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 22), () => pause.SetActive(false)).gameObject;
         MakeButton(pause.transform, "SETTINGS", top, new Vector2(0, -52), new Vector2(120, 22), () =>
         {
             pause.SetActive(false);
@@ -652,6 +727,7 @@ public class GameUI : MonoBehaviour
             () => _ = SessionManager.Instance.Leave());
         pause.SetActive(false);
 
+        BuildMap(canvas);
         BuildCards(canvas);
         BuildTouchControls(canvas);
         BuildSettings(canvas);
