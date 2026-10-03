@@ -442,10 +442,9 @@ def make_characters():
 
 # ---------------------------------------------------------------- UI
 
-def font_atlas():
+def font_atlas(size=9, cw=10, ch=14):
     """ASCII 32..127 in a 16x6 grid. The game measures each glyph's width itself."""
-    cw, ch = 10, 14
-    font = ImageFont.truetype(TEXT_FONT.replace("-Bold", ""), 9)
+    font = ImageFont.truetype(TEXT_FONT.replace("-Bold", ""), size)
     mask = Image.new("1", (cw * 16, ch * 6), 0)
     d = ImageDraw.Draw(mask)
     for code in range(32, 127):
@@ -510,6 +509,7 @@ def bulb(lit):
 def make_ui():
     ui = ("..", "Resources", "UI")
     save(font_atlas(), *ui, "font.png")
+    save(font_atlas(8, 9, 12), *ui, "font_small.png")
     save(logo(), *ui, "logo.png")
     save(nine_slice("#f2b33d", "#17131f", light="#ffe08a", dark="#c9862a"), *ui, "button_9s.png")
     save(nine_slice(rgb("#11162e", 235), "#4a5aa8"), *ui, "panel_9s.png")
@@ -1049,6 +1049,126 @@ def make_hills_art():
     save(dam_wall(), "Props", "dam_wall.png")
 
 
+# ---------------------------------------------------------------- town extras and side-jobs
+
+def street_sign(text, colour="#1f5fa8"):
+    label = pixel_text(text, 9, rgb("#ffffff"))
+    w = label.width + 8
+    img = Image.new("RGBA", (w, 30), CLEAR)
+    d = ImageDraw.Draw(img)
+    for x in (4, w - 6):
+        d.rectangle([x, 12, x + 1, 29], fill=rgb("#8b93a1"))
+    d.rectangle([0, 0, w - 1, 13], fill=rgb(colour))
+    d.rectangle([1, 1, w - 2, 12], outline=rgb("#ffffff"))
+    img.alpha_composite(label, (4, 7 - label.height // 2))
+    return outlined(img)
+
+
+def electric_pole():
+    img = Image.new("RGBA", (22, 60), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([10, 2, 11, 59], fill=rgb("#8d8a84"))
+    d.line([10, 3, 10, 59], fill=rgb("#b0ada6"))
+    d.rectangle([1, 5, 20, 6], fill=rgb("#6b665f"))
+    for x in (2, 8, 13, 19):
+        d.rectangle([x, 2, x, 4], fill=rgb("#e8dfcc"))
+    return outlined(img)
+
+
+def bus_stop():
+    img = Image.new("RGBA", (64, 44), CLEAR)
+    d = ImageDraw.Draw(img)
+    for x in (3, 58):
+        d.rectangle([x, 10, x + 2, 43], fill=rgb("#6f7683"))
+    d.rectangle([0, 6, 63, 12], fill=rgb("#b4433a"))
+    d.rectangle([0, 6, 63, 7], fill=rgb("#d9634a"))
+    sign(img, "BUS STOP", [3, 14, 60, 25], "#f3ead7", "#17131f")
+    d.rectangle([8, 32, 55, 34], fill=rgb("#7b5b3d"))  # bench
+    for x in (10, 52):
+        d.rectangle([x, 35, x + 1, 43], fill=rgb("#5a4030"))
+    return outlined(img)
+
+
+def autorickshaw():
+    img = Image.new("RGBA", (40, 30), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([4, 10, 33, 23], fill=rgb("#e9c53a"))
+    d.polygon([(4, 10), (10, 2), (30, 2), (35, 10)], fill=rgb("#1b1622"))
+    d.rectangle([10, 6, 18, 12], fill=rgb("#cfe3ea"))
+    d.rectangle([21, 6, 29, 12], fill=rgb("#2a2630"))
+    d.rectangle([4, 19, 33, 23], fill=rgb("#1b1622"))
+    d.rectangle([34, 14, 37, 18], fill=rgb("#fff2b3"))
+    for cx in (9, 29):
+        d.ellipse([cx - 4, 21, cx + 4, 29], fill=rgb("#2a2630"))
+        d.ellipse([cx - 1, 24, cx + 1, 26], fill=rgb("#8b93a1"))
+    return outlined(img)
+
+
+def gate_bars():
+    img = Image.new("RGBA", (18, 24), CLEAR)
+    d = ImageDraw.Draw(img)
+    for x in range(1, 18, 4):
+        d.rectangle([x, 1, x + 1, 23], fill=rgb("#6f7683"))
+        d.polygon([(x, 2), (x + 1, 2), (x + 0.5, 0)], fill=rgb("#c9cdd6"))
+    d.rectangle([0, 5, 17, 6], fill=rgb("#4f535f"))
+    d.rectangle([0, 18, 17, 19], fill=rgb("#4f535f"))
+    return outlined(img)
+
+
+def slab(pressed):
+    img = Image.new("RGBA", (18, 14), CLEAR)
+    d = ImageDraw.Draw(img)
+    stone = rgb("#8f867a") if pressed else rgb("#b0a79a")
+    d.rectangle([0, 0 if not pressed else 2, 17, 11], fill=stone, outline=OUTLINE)
+    if not pressed:
+        d.rectangle([1, 11, 16, 13], fill=shade(stone, 0.65))
+    d.rectangle([5, 4, 12, 8], outline=rgb("#e9c53a"))
+    return img
+
+
+def oil_lamp(lit):
+    img = Image.new("RGBA", (10, 16), CLEAR)
+    d = ImageDraw.Draw(img)
+    brass = rgb("#c9a45a")
+    d.rectangle([4, 6, 5, 15], fill=brass)
+    d.rectangle([2, 13, 7, 15], fill=shade(brass, 0.8))
+    d.rectangle([1, 4, 8, 6], fill=brass)
+    if lit:
+        d.rectangle([4, 0, 5, 3], fill=rgb("#ffb347"))
+        img.putpixel((4, 1), rgb("#fff2b3"))
+    return outlined(img)
+
+
+def crate():
+    img = Image.new("RGBA", (14, 14), CLEAR)
+    d = ImageDraw.Draw(img)
+    wood = rgb("#b98d5a")
+    d.rectangle([0, 0, 13, 13], fill=wood)
+    d.rectangle([0, 0, 13, 2], fill=shade(wood, 1.2))
+    d.line([0, 6, 13, 6], fill=shade(wood, 0.7))
+    d.line([0, 10, 13, 10], fill=shade(wood, 0.7))
+    for x in (3, 7, 11):  # milk bottle tops
+        d.rectangle([x - 1, 1, x, 3], fill=rgb("#f3f6ff"))
+    return outlined(img)
+
+
+def make_extras_art():
+    for name, text in (("kamarajar", "KAMARAJAR ST"), ("bazaar", "BAZAAR ST"), ("tank", "TANK RD")):
+        save(street_sign(text), "Props", f"sign_{name}.png")
+    for name, text in (("fields", "FIELDS >"), ("talkies", "RAJA TALKIES ^"), ("yard", "< GOODS YARD"), ("hills", "WINDMILLS ^")):
+        save(street_sign(text, "#2f7a55"), "Props", f"sign_{name}.png")
+    save(electric_pole(), "Props", "electric_pole.png")
+    save(bus_stop(), "Props", "bus_stop.png")
+    save(autorickshaw(), "Props", "autorickshaw.png")
+    save(gate_bars(), "Props", "gate_bars.png")
+    save(slab(False), "Decals", "slab_up.png")
+    save(slab(True), "Decals", "slab_down.png")
+    save(oil_lamp(False), "Props", "oil_lamp_off.png")
+    save(oil_lamp(True), "Props", "oil_lamp_on.png")
+    save(crate(), "Props", "crate.png")
+    save(small(["bbbbbbb", "bgggbob", "bgggbbb", "bbbbbbb"], {"b": "#6b4c33", "g": "#d9cdb0", "o": "#17131f"}), "Items", "radio.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -1059,3 +1179,4 @@ def main():
     make_cinema_art()
     make_yard_art()
     make_hills_art()
+    make_extras_art()

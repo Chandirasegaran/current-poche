@@ -23,6 +23,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] SpriteRenderer body;
     [SerializeField] Transform torchPivot;
     [SerializeField] KidLook[] looks;
+    [SerializeField] UnityEngine.Rendering.Universal.Light2D torch;
     [SerializeField] SpriteRenderer carryIcon;
     [SerializeField] Sprite[] itemSprites; // indexed by Item
 
@@ -131,6 +132,12 @@ public class PlayerController : NetworkBehaviour
         if (Controls.Held(GameAction.Right) || keyboard.rightArrowKey.isPressed) moveInput.x += 1;
         moveInput = moveInput.normalized;
 
+        if (Controls.Pressed(GameAction.Whistle) && Dog.Instance != null)
+        {
+            Sfx.Play("whistle");
+            Dog.Instance.WhistleRpc();
+        }
+
         // The torch points where you last walked.
         if (moveInput != Vector2.zero && moveInput != facing.Value)
             facing.Value = moveInput;
@@ -167,6 +174,9 @@ public class PlayerController : NetworkBehaviour
             walkClock = 0f;
             body.sprite = kid.idle;
         }
+
+        // Every side-job finished makes everyone's torch reach a little further.
+        if (Quests.Instance != null) torch.pointLightOuterRadius = 7.5f + Quests.Instance.SideJobs;
 
         carryIcon.sprite = itemSprites[(int)Carrying];
         carryIcon.transform.localPosition = new Vector3(0f, 1.5f + Mathf.Sin(Time.time * 4f) * 0.05f, 0f);

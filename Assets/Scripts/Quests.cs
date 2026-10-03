@@ -36,7 +36,11 @@ public class Quests : NetworkBehaviour
         YardDone = 4096,
         // Chapters 5 and 6: the hills and the powerhouse
         Finished = 8192,
+        // Side-jobs: optional, any time
+        RadioFound = 1 << 14, RadioReturned = 1 << 15, CratesDelivered = 1 << 16, TempleLit = 1 << 17,
     }
+
+    public const int SideJobCount = 3;
 
     public const int WindmillCount = 3;
 
@@ -117,6 +121,8 @@ public class Quests : NetworkBehaviour
     [SerializeField] GameObject[] windmillLights;
     [SerializeField] StreetLight generator;
     [SerializeField] GameObject minnalWaiting, minnalLeaving, skyFlash;
+    [SerializeField] Transform crateSpot;       // where Selvam wants his crates
+    [SerializeField] StreetLight[] templeLamps; // the oil lamps around the tank
 
     readonly NetworkVariable<int> flags = new();
     readonly NetworkVariable<int> ballMask = new();
@@ -134,6 +140,9 @@ public class Quests : NetworkBehaviour
     readonly List<Vector3> beamPoints = new();
 
     public bool Finished => Has(Flag.Finished);
+
+    // How many side-jobs are done. Each one makes every torch reach further.
+    public int SideJobs => (Has(Flag.RadioReturned) ? 1 : 0) + (Has(Flag.CratesDelivered) ? 1 : 0) + (Has(Flag.TempleLit) ? 1 : 0);
     int WindmillsTurning => Bits(brakeMask.Value, WindmillCount);
 
     public bool YardDone => Has(Flag.YardDone);
@@ -257,6 +266,7 @@ public class Quests : NetworkBehaviour
         int saved = data.flags;
         if ((saved & (int)Flag.GlassesReturned) == 0) saved &= ~(int)Flag.GlassesFound;
         if ((saved & (int)Flag.BeltFitted) == 0) saved &= ~(int)Flag.BeltTaken;
+        if ((saved & (int)Flag.RadioReturned) == 0) saved &= ~(int)Flag.RadioFound;
 
         flags.Value = saved;
         ballMask.Value = data.ballMask;
@@ -443,6 +453,25 @@ public class Quests : NetworkBehaviour
         minnalWaiting.SetActive(!(IsSpawned && Finished));
         if (IsSpawned && IsServer)
         {
+            // Side-jobs that finish by themselves.
+            if (!Has(Flag.CratesDelivered))
+            {
+                int delivered = 0;
+                foreach (var crate in Crate.All)
+                    if (!crate.Held && Vector2.Distance(crate.transform.position, crateSpot.position) < 2.6f) delivered++;
+                if (Crate.All.Count > 0 && delivered == Crate.All.Count) SideJobDone(Flag.CratesDelivered, "All the crates are at the tea stall!");
+            }
+            if (!Has(Flag.TempleLit))
+            {
+                bool all = templeLamps.Length > 0;
+                foreach (var lamp in templeLamps) all &= lamp.IsLit;
+                if (all)
+                {
+                    SideJobDone(Flag.TempleLit, "Every lamp at the temple tank is lit.");
+                    AnnounceRpc("", "bell");
+                }
+            }
+
             generator.Locked = WindmillsTurning < WindmillCount;
             if (generator.IsLit && !Finished) Raise(Flag.Finished);
         }
@@ -480,6 +509,7 @@ public class Quests : NetworkBehaviour
     {
         if (!IsSpawned) return true;
         if (action == "glasses") return !Has(Flag.GlassesFound);
+        if (action == "radio") return !Has(Flag.RadioFound);
         if (action.StartsWith("ball")) return (ballMask.Value & (1 << (action[4] - '0'))) == 0;
         if (action.StartsWith("reel")) return (reelMask.Value & (1 << (action[4] - '0'))) == 0;
         if (action.StartsWith("lantern")) return (lanternMask.Value & (1 << (action[7] - '0'))) == 0;
@@ -490,6 +520,12 @@ public class Quests : NetworkBehaviour
     public string LogText()
     {
         if (!IsSpawned) return "";
+        string chapter = ChapterText();
+        return Finished && SideJobs == SideJobCount ? chapter : chapter + $"\nSide-jobs {SideJobs}/{SideJobCount}";
+    }
+
+    string ChapterText()
+    {
         if (Finished) return "THE END\nThank you for playing!";
         if (YardDone)
             return "Kaatthaadi Hills\n"
@@ -554,7 +590,17 @@ public class Quests : NetworkBehaviour
                 };
 
             case "paati":
-                if (Has(Flag.GlassesReturned)) return new[] { "Paati|Now I can see how dark it is. Wonderful. Go on, kanna, the town is waiting." };
+                if (Has(Flag.RadioFound) && !Has(Flag.RadioReturned)) return new[]
+                {
+                    "Paati|Your thatha's radio! It still has his thumbprint worn into the dial.",
+                    "Paati|He always said a good torch is half a brave heart. Here, let me fix yours the way he fixed his.",
+                };
+                if (Has(Flag.RadioReturned)) return new[] { "Paati|The radio is on the shelf. When the current comes back, we will hear how the match ended." };
+                if (Has(Flag.GlassesReturned)) return new[]
+                {
+                    "Paati|Now I can see how dark it is. Wonderful. Go on, kanna, the town is waiting.",
+                    "Paati|One more thing. Your thatha's old radio is locked in the godown behind the west houses. The gate only opens while something heavy sits on the stone slab outside. Battery is heavy. Whistle, and he stays.",
+                };
                 if (item == PlayerController.Item.Glasses) return new[]
                 {
                     "Paati|My glasses! Where were th-- by the WELL? I was only there to check the rope...",
@@ -569,8 +615,21 @@ public class Quests : NetworkBehaviour
             case "glasses":
                 return new[] { "|Paati's glasses. One arm is held on with thread." };
 
+            case "radio":
+                return new[] { "|An old valve radio, wrapped in a towel. THATHA is scratched on the back. Paati will want this." };
+
+            case "shrine":
+                return Has(Flag.TempleLit)
+                    ? new[] { "|All five lamps burn around the tank. The water is full of little flames." }
+                    : new[] { "|Five brass oil lamps stand around the temple tank, unlit. One minmini each would be enough to light them." };
+
             case "teamaster":
-                if (Has(Flag.GoatRewarded)) return new[] { "Tea Master Selvam|Lakshmi is sulking, the stove is hot, and you are my favourite customer. Second tea is still full price." };
+                if (Has(Flag.CratesDelivered)) return new[] { "Tea Master Selvam|Milk, goat, stove. Now THIS is a tea stall. Your torch looks brighter, or is it my mood?" };
+                if (Has(Flag.GoatRewarded)) return new[]
+                {
+                    "Tea Master Selvam|Lakshmi is sulking, the stove is hot, and you are my favourite customer. Second tea is still full price.",
+                    "Tea Master Selvam|If you want to stay my favourite: three crates of milk bottles are sitting at the bus stop on Kamarajar Street. Carry them here, by the stall. You can throw them too, they are good bottles.",
+                };
                 if (GoatPenned) return new[]
                 {
                     "Tea Master Selvam|LAKSHMI! You found her! She gives the milk, thambi. No Lakshmi, no tea, no Minnalpatti.",
@@ -760,6 +819,15 @@ public class Quests : NetworkBehaviour
                 AnnounceRpc("", "pickup");
                 break;
 
+            case "radio" when !Has(Flag.RadioFound):
+                Raise(Flag.RadioFound);
+                AnnounceRpc("", "pickup");
+                break;
+
+            case "paati" when Has(Flag.RadioFound) && !Has(Flag.RadioReturned):
+                SideJobDone(Flag.RadioReturned, "Thatha's radio is home.");
+                break;
+
             case "paati" when item == PlayerController.Item.Glasses && !Has(Flag.GlassesReturned):
                 player.Carrying = PlayerController.Item.None;
                 Raise(Flag.GlassesReturned);
@@ -859,6 +927,12 @@ public class Quests : NetworkBehaviour
         Raise(Flag.GoatPenned);
         leader.Carrying = PlayerController.Item.None;
         AnnounceRpc("Lakshmi is home! Go and tell Tea Master Selvam.", "quest");
+    }
+
+    void SideJobDone(Flag flag, string message)
+    {
+        Raise(flag);
+        AnnounceRpc($"{message}\nSide-job done: every torch now shines further.", "quest");
     }
 
     void Reward()

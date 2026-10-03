@@ -35,6 +35,11 @@ public static class TownBuilder
     static readonly RectInt Tank = new(14, -20, 27, 10);
     static readonly RectInt Pitch = new(26, 9, 4, 10);
 
+    // The old godown: a small walled store behind the west houses, with a gate
+    // in the middle of its south wall (a side-job).
+    static readonly RectInt Godown = Area(-47, 9, -39, 15);
+    const int GodownGateX = -43;
+
     const int FieldsStart = 66, FieldsEnd = 148;
 
     // North of town, up the road past the bazaar, is the walled yard of Raja
@@ -143,6 +148,7 @@ public static class TownBuilder
         BuildCinema(questState, north, network.GetComponent<WorldSpawner>());
         BuildGoodsYard(questState, west);
         BuildHills(questState);
+        BuildExtras(questState);
         Fill(questState.FindProperty("powerOn"), powerLights);
         Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
         questState.ApplyModifiedPropertiesWithoutUndo();
@@ -176,7 +182,7 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
-        PlayerSettings.bundleVersion = "0.1.0";
+        PlayerSettings.bundleVersion = "0.2.0";
         var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
         PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
@@ -216,6 +222,7 @@ public static class TownBuilder
         torch.falloffIntensity = 0.6f;
         torch.shadowsEnabled = true;
         torch.shadowIntensity = 0.75f;
+        var torchLight = torch;
 
         // A faint glow so you can always see yourself.
         Light(Child(root, "Aura", new Vector3(0f, 0.5f, 0f)), new Color(1f, 0.9f, 0.75f), 0.55f, 0.2f, 2.4f);
@@ -232,6 +239,7 @@ public static class TownBuilder
         var controller = new SerializedObject(root.AddComponent<PlayerController>());
         controller.FindProperty("body").objectReferenceValue = body;
         controller.FindProperty("carryIcon").objectReferenceValue = carry;
+        controller.FindProperty("torch").objectReferenceValue = torchLight;
         var items = controller.FindProperty("itemSprites");
         string[] itemNames = { null, "glasses", "leaf", "ice", "belt" };
         items.arraySize = itemNames.Length;
@@ -381,6 +389,12 @@ public static class TownBuilder
     static string GroundAt(int x, int y)
     {
         if (x >= FieldsStart) return FieldAt(x, y);
+
+        // A boundary wall along the north and north-west of the town, so the
+        // only way out that side is through the gap where the road is.
+        bool onNorthRoad = x >= Roads[1] && x <= Roads[1] + 3;
+        if (y == 38 && x >= -HalfWidth - 1 && !onNorthRoad) return "wall";
+        if (x == -HalfWidth - 1 && y >= 38) return "wall";
         if (x < -65 && y >= Hills.yMin) return HillsAt(x, y);
         if (y >= Yard.yMin) return CinemaAt(x, y);
         if (x < -65) return YardAt(x, y);
@@ -396,6 +410,11 @@ public static class TownBuilder
         if (inTown && (OnStreet(y) || OnRoad(x))) return "road";
         if (y < Streets[2] - 3 || x > Roads[2] + 6 || x < Roads[0] - 3) return "paddy";
 
+        if (Godown.Contains(new Vector2Int(x, y)))
+        {
+            bool edge = x == Godown.xMin || x == Godown.xMax - 1 || y == Godown.yMin || y == Godown.yMax - 1;
+            return edge && !(x == GodownGateX && y == Godown.yMin) ? "wall" : "cement";
+        }
         if (Tank.Contains(new Vector2Int(x, y))) return "water";
         var steps = new RectInt(Tank.x - 1, Tank.y - 1, Tank.width + 2, Tank.height + 2);
         if (steps.Contains(new Vector2Int(x, y))) return "steps";
@@ -444,6 +463,7 @@ public static class TownBuilder
         water.size = new Vector2(Tank.width - 0.4f, Tank.height - 0.4f);
         blocked.Add(new Rect(Tank.x - 2, Tank.y - 2, Tank.width + 4, Tank.height + 4));
         blocked.Add(new Rect(Pitch.x - 6, Pitch.y - 2, Pitch.width + 12, Pitch.height + 4));
+        blocked.Add(new Rect(Godown.xMin - 2, Godown.yMin - 4, Godown.width + 4, Godown.height + 6));
     }
 
     // ------------------------------------------------------------ districts
@@ -527,6 +547,7 @@ public static class TownBuilder
         blocked.Add(new Rect(2f, -20f, 10f, 9f));
 
         var shrine = Building("Shrine", "Props/shrine", 27.5f, -9f);
+        Act(shrine, "Look", "shrine");
         var lamp = Child(shrine, "Oil Lamp", new Vector3(0f, 0.9f, 0f));
         Light(lamp, new Color(1f, 0.7f, 0.35f), 1.3f, 0.2f, 3.2f);
         lamp.AddComponent<FlickerLight>();
@@ -997,6 +1018,102 @@ public static class TownBuilder
         quests.FindProperty("minnalWaiting").objectReferenceValue = waiting;
         quests.FindProperty("minnalLeaving").objectReferenceValue = leaving;
         quests.FindProperty("skyFlash").objectReferenceValue = flash;
+    }
+
+    // Things that make the town feel lived in (street boards, electric poles,
+    // the bus stop) and the three side-jobs.
+    static void BuildExtras(SerializedObject quests)
+    {
+        // Street name boards and signposts to the ways out of town.
+        (string sign, float x, float y)[] boards =
+        {
+            ("kamarajar", -5.5f, 2.4f), ("kamarajar", 50f, 2.4f), ("bazaar", -5.5f, 26.4f), ("bazaar", 50f, 26.4f),
+            ("tank", -5.5f, -21.6f), ("tank", -51f, -21.6f),
+            ("fields", 58.5f, 2.6f), ("talkies", 4f, 29.5f), ("yard", -59.5f, -21.6f), ("hills", -104.5f, -7.4f),
+        };
+        foreach (var (sign, x, y) in boards)
+            Solid(Prop("Street Board", $"Props/sign_{sign}", new Vector3(x, y, 0f)), 0.3f, 0.2f);
+
+        // Electric poles along each street, with the dead wires strung between them.
+        foreach (int street in Streets)
+        {
+            var wire = new GameObject("Wires").AddComponent<LineRenderer>();
+            wire.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
+            wire.startWidth = wire.endWidth = 0.05f;
+            wire.startColor = wire.endColor = new Color(0.03f, 0.03f, 0.06f);
+            wire.sortingOrder = 4;
+            var points = new List<Vector3>();
+            for (float x = -52f; x <= 52f; x += 13f)
+            {
+                if (Mathf.Abs(x) < 4f) continue; // not in the middle of the crossroads
+                Solid(Prop("Electric Pole", "Props/electric_pole", new Vector3(x, street - 1.3f, 0f)), 0.3f, 0.3f);
+                var top = new Vector3(x, street - 1.3f + 3.4f, 0f);
+                if (points.Count > 0) points.Add((points[^1] + top) / 2f + Vector3.down * 0.35f); // sag
+                points.Add(top);
+            }
+            wire.positionCount = points.Count;
+            wire.SetPositions(points.ToArray());
+        }
+
+        Prop("Bus Stop", "Props/bus_stop", new Vector3(22f, -3.3f, 0f));
+        Solid(Prop("Autorickshaw", "Props/autorickshaw", new Vector3(-20f, 21.2f, 0f)), 2.2f, 0.6f);
+
+        // Side-job 1: Thatha's radio, locked in the godown. The gate opens while
+        // the stone slab outside is held down.
+        var gate = Prop("Godown Gate", "Props/gate_bars", new Vector3(GodownGateX + 0.5f, Godown.yMin, 0f));
+        gate.AddComponent<BoxCollider2D>().size = new Vector2(1f, 1f);
+        gate.GetComponent<BoxCollider2D>().offset = new Vector2(0f, 0.5f);
+        var slab = Prop("Stone Slab", "Decals/slab_up", new Vector3(GodownGateX + 2.6f, Godown.yMin - 1.4f, 0f));
+        slab.GetComponent<SpriteRenderer>().sortingOrder = DecalOrder;
+        slab.AddComponent<NetworkObject>();
+        var plate = slab.AddComponent<PressurePlate>();
+        Set(plate, "slab", slab.GetComponent<SpriteRenderer>());
+        Set(plate, "up", Load("Decals/slab_up"));
+        Set(plate, "down", Load("Decals/slab_down"));
+        Set(plate, "gate", gate);
+        Pickup("Thatha's Radio", "Items/radio", new Vector3(Godown.center.x, Godown.center.y + 0.5f, 0f), "radio");
+
+        // Side-job 2: three crates of milk bottles to carry from the bus stop to the tea stall.
+        foreach (var spot in new[] { new Vector3(19.4f, -4.8f, 0f), new Vector3(20.7f, -5.1f, 0f), new Vector3(24.4f, -4.9f, 0f) })
+        {
+            var crate = Prop("Milk Crate", "Props/crate", spot);
+            Talk(crate, "Pick up");
+            crate.AddComponent<NetworkObject>();
+            SyncedPosition(crate);
+            crate.AddComponent<Crate>();
+        }
+        var delivery = new GameObject("Crate Spot").transform;
+        delivery.position = new Vector3(-30.5f, 26.3f, 0f);
+
+        // Side-job 3: five oil lamps around the temple tank, one minmini each.
+        Vector3[] lampSpots =
+        {
+            new(Tank.xMin - 0.5f, Tank.yMin - 0.8f, 0f), new(Tank.xMax + 0.5f, Tank.yMin - 0.8f, 0f),
+            new(Tank.xMin - 0.5f, Tank.yMax + 0.1f, 0f), new(Tank.xMax + 0.5f, Tank.yMax + 0.1f, 0f),
+            new(Tank.center.x - 6f, Tank.yMax + 0.1f, 0f),
+        };
+        var lamps = quests.FindProperty("templeLamps");
+        lamps.arraySize = lampSpots.Length;
+        for (int i = 0; i < lampSpots.Length; i++)
+        {
+            var lamp = Prop("Oil Lamp", "Props/oil_lamp_off", lampSpots[i]);
+            Solid(lamp, 0.3f, 0.2f);
+            var pool = Light(Child(lamp, "Flame", new Vector3(0f, 0.9f, 0f)), new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.6f);
+            pool.gameObject.AddComponent<FlickerLight>();
+            var glow = Glow(lamp, new Vector3(0f, 0.9f, 0f), new Color(1f, 0.75f, 0.4f), 0.3f);
+            lamp.AddComponent<NetworkObject>();
+            var flame = lamp.AddComponent<StreetLight>();
+            Set(flame, "needed", 1);
+            Set(flame, "isStreetlight", false);
+            Set(flame, "pole", lamp.GetComponent<SpriteRenderer>());
+            Set(flame, "litSprite", Load("Props/oil_lamp_on"));
+            Set(flame, "deadSprite", Load("Props/oil_lamp_off"));
+            Set(flame, "pool", pool);
+            Set(flame, "glow", glow);
+            lamps.GetArrayElementAtIndex(i).objectReferenceValue = flame;
+        }
+
+        quests.FindProperty("crateSpot").objectReferenceValue = delivery;
     }
 
     // Adds a prefab to the list of things the server is allowed to spawn.

@@ -348,6 +348,7 @@ MonoBehaviour:
   - idle: {fileID: 21300000, guid: 37fbc95122ed761c898f100f973a681e, type: 3}
     walk1: {fileID: 21300000, guid: d1ff11113d5a87eecb344411647bd05c, type: 3}
     walk2: {fileID: 21300000, guid: de15a7b5c61370073b3cb634f1bf47be, type: 3}
+  torch: {fileID: 6508505236172818437}
   carryIcon: {fileID: 660227721602417987}
   itemSprites:
   - {fileID: 0}
@@ -497,7 +498,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363314719032050
+    rid: 7806363315414761583
   m_FalloffIntensity: 0.65
   m_Color: {r: 1, g: 0.9, b: 0.75, a: 1}
   m_Intensity: 0.55
@@ -543,7 +544,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363314719032050
+    - rid: 7806363315414761583
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3
@@ -601,7 +602,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363314719032049
+    rid: 7806363315414761582
   m_FalloffIntensity: 0.6
   m_Color: {r: 1, g: 0.92, b: 0.72, a: 1}
   m_Intensity: 1.9
@@ -647,7 +648,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363314719032049
+    - rid: 7806363315414761582
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3

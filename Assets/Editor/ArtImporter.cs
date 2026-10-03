@@ -17,7 +17,7 @@ public class ArtImporter : AssetPostprocessor
         importer.filterMode = FilterMode.Point;
         importer.textureCompression = TextureImporterCompression.Uncompressed;
         importer.mipmapEnabled = false;
-        importer.isReadable = assetPath.EndsWith("font.png"); // the game reads the font's pixels
+        importer.isReadable = assetPath.Contains("/font"); // the game reads the font's pixels
 
         // "_9s" sprites stretch from the middle and keep their corners (buttons, panels).
         if (assetPath.Contains("_9s")) importer.spriteBorder = new Vector4(5, 5, 5, 5);

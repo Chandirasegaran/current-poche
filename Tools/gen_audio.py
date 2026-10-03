@@ -106,6 +106,10 @@ def effects():
          + mix(noise(0.13, 0.5, 0.5, 6), tone(390, 0.13, square, end_freq=230, volume=0.6)), 0.6)
     save("bleat", tone(520, 0.45, lambda p: triangle(p) * (0.6 + 0.4 * sine(p / 22)), end_freq=430, release=0.2), 0.5)
 
+    save("whistle", tone(1500, 0.12, sine, end_freq=2300) + tone(2300, 0.2, sine, end_freq=1700, release=0.12), 0.5)
+    save("thud", mix(noise(0.14, 0.9, 0.85, 31), tone(90, 0.14, sine, end_freq=50, volume=0.9)), 0.7)
+    save("bell", mix(bell("C5", 2.2, 0.8), bell("G5", 2.2, 0.35)), 0.7)
+
     gust = noise(1.6, 1.0, 0.93, 21)
     save("gust", [g * math.sin(math.pi * i / len(gust)) for i, g in enumerate(gust)], 0.7)
 

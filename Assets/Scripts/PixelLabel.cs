@@ -7,6 +7,7 @@ public class PixelLabel : MonoBehaviour
 {
     public int wrapWidth;
     public int scale = 1;
+    public bool small; // use the smaller font
 
     RawImage image;
     string shown;
@@ -21,7 +22,7 @@ public class PixelLabel : MonoBehaviour
 
             if (image == null) image = GetComponent<RawImage>();
             if (image.texture != null) Destroy(image.texture);
-            var texture = PixelFont.Render(value, wrapWidth);
+            var texture = PixelFont.Render(value, wrapWidth, small);
             image.texture = texture;
             image.rectTransform.sizeDelta = new Vector2(texture.width, texture.height) * scale;
         }

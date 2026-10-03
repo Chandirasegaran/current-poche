@@ -197,7 +197,7 @@ public class GameUI : MonoBehaviour
         if (nearby != null) hintLabel.Text = $"[{Controls.Label(GameAction.Interact)}] {nearby.verb}";
 
         // Messages sit at the bottom of the screen, or just above the dialogue box.
-        ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 70f : 8f);
+        ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 62f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
     }
 
@@ -276,6 +276,11 @@ public class GameUI : MonoBehaviour
 
     void Interact(Interactable target, PlayerController player)
     {
+        if (target.TryGetComponent<Crate>(out var crate))
+        {
+            crate.UseRpc();
+            return;
+        }
         if (target.verb == "Pet") Sfx.Play("bark", 0.8f);
         bool scripted = !string.IsNullOrEmpty(target.action) && Quests.Instance != null;
         var script = scripted ? Quests.Instance.Talk(target.action, player) : target.lines;
@@ -397,19 +402,19 @@ public class GameUI : MonoBehaviour
         ActualSize(bulbIcon);
         lightsLabel = Label(lightsPanel.transform, "", topLeft, topLeft, new Vector2(22, -4), Pale);
 
-        questPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -29), new Vector2(112, 77)).gameObject;
-        questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(7, -4), Pale);
+        questPanel = Box(hud.transform, "panel_9s", topRight, topRight, new Vector2(-6, -29), new Vector2(96, 72)).gameObject;
+        questLabel = Label(questPanel.transform, "", topLeft, topLeft, new Vector2(6, -4), Pale, 0, true);
         iceLabel = Label(hud.transform, "", top, top, new Vector2(0, -8), new Color(0.6f, 0.9f, 1f));
 
         hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 112), Yellow);
 
-        toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 80), new Vector2(236, 42)).gameObject;
-        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 222);
+        toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 80), new Vector2(236, 36)).gameObject;
+        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 222, true);
         toast.SetActive(false);
 
-        dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(300, 58)).gameObject;
+        dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(300, 52)).gameObject;
         speakerLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -5), Yellow);
-        lineLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -17), Pale, 280);
+        lineLabel = Label(dialogue.transform, "", topLeft, topLeft, new Vector2(10, -17), Pale, 280, true);
         moreLabel = Label(dialogue.transform, ">", Vector2.right, Vector2.right, new Vector2(-8, 4), Yellow);
         dialogue.SetActive(false);
 
@@ -479,12 +484,13 @@ public class GameUI : MonoBehaviour
     }
 
     static PixelLabel Label(Transform parent, string text, Vector2 anchor, Vector2 pivot, Vector2 position,
-        Color colour, int wrapWidth = 0)
+        Color colour, int wrapWidth = 0, bool small = false)
     {
         var label = new GameObject("Label", typeof(RawImage)).AddComponent<PixelLabel>();
         label.GetComponent<RawImage>().raycastTarget = false;
         Place((RectTransform)label.transform, parent, anchor, pivot, position);
         label.wrapWidth = wrapWidth;
+        label.small = small;
         label.Colour = colour;
         label.Text = text;
         return label;
