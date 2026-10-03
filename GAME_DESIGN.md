@@ -109,8 +109,15 @@ three side-jobs, crates to carry and throw, Battery's stay command, street board
 walking animation in four directions, two-storey houses and extra props, a music track
 for each part of the world, and installers for Windows and Linux.
 
-Nothing on the original list is left unbuilt. One thing remains that no amount of
-building can replace:
+Later additions: eight playable kids, a map, name tags and emotes, chapter title cards,
+the cricket score on the radio after every chapter, Minnal as a companion in the last
+chapter, a teamwork gate that needs two weights, hidden kolams, a summary and a daytime
+epilogue at the end, controller support, footsteps and night sounds that change with the
+place, touch controls, and Android and web versions.
+
+A Tamil language option was tried and removed: the translation was not good enough.
+
+One thing remains that building cannot replace:
 
 - **Play-testing by people.** The timers and hazard speeds were chosen by calculation
   (for example, the ice run is about 26 seconds of walking against a 40 second timer, or

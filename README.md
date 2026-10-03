@@ -15,9 +15,14 @@ together online.
 
 - **Play solo** needs no internet.
 - **Host online** gives you a join code; friends type it in on the title screen.
+- Choose who to play as on the title screen: four boys (Kavin, Abdul, Arul, Muthu) and
+  four girls (Yazhini, Mercy, Nila, Kayal).
 - Move with WASD or the arrow keys. E talks, picks up, uses and throws things (Space, Enter
-  or a click also continue dialogue). Q whistles to Battery the dog: stay, or come. Tab
-  hides the task list. Esc opens the menu. F11 switches between fullscreen and a window.
+  or a click also continue dialogue). Q whistles to Battery the dog: stay, or come. M opens
+  the map. 1 to 4 are quick emotes (Come here, Wait, Look, Ha ha). Tab hides the task list.
+  Esc opens the menu. F11 switches between fullscreen and a window.
+- A controller works too: stick or d-pad to move, A to use, X for Battery, Y for the map,
+  Start for the menu.
 - On a phone or tablet: a stick appears under your left thumb, with USE, DOG, MENU and
   TASKS buttons on the right. Tap anywhere to continue dialogue.
 - **Settings** (title screen or Esc menu): music and sound volume, fullscreen, difficulty,
@@ -37,10 +42,16 @@ Each chapter opens a new part of the map when the one before is finished.
 | 5. Kaatthaadi Hills | Windmill ridge, north-west | Climb three ledges against gusts of wind and release the brake on three windmills |
 | 6. The Powerhouse | The dam | Start the generator with eight minminis and send Minnal home |
 
-Three optional **side-jobs** can be done at any time, and each makes every torch reach
+Four optional **side-jobs** can be done at any time, and each makes every torch reach
 further: fetch Thatha's radio from the godown (its gate opens while something heavy is on
-the stone slab), carry or throw three milk crates from the bus stop to the tea stall, and
-light the five oil lamps around the temple tank.
+the stone slab), carry or throw three milk crates from the bus stop to the tea stall, light
+the five oil lamps around the temple tank, and recover the cricket club trophy from the
+school store room, whose gate needs two slabs held down at once (two friends, or a friend
+and Battery, or Battery and a crate).
+
+Six **kolams** are hidden around the world, one in each chapter's region. In the last
+chapter Minnal follows you up the ridge. When the story ends you get a summary of your
+night, the sun comes up, and everyone in town has one last thing to say.
 
 Bandicoots roam the dark and scatter the minminis you are leading; shine your torch at them.
 
