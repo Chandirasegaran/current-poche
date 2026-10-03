@@ -40,6 +40,19 @@ public static class TownBuilder
     // North of town, up the road past the bazaar, is the walled yard of Raja
     // Talkies (Chapter 3). The gate is in the middle of its south wall.
     const int NorthEnd = 96;
+
+    // West of town, past the level crossing on Tank Road, is the goods yard
+    // (Chapter 4): gravel, with three railway tracks running east-west.
+    const int WestEnd = -150;
+    static readonly RectInt GoodsYard = Area(-148, -38, -70, -6);
+    static readonly int[] Tracks = { -14, -21, -32 };
+
+    static string YardAt(int x, int y)
+    {
+        if (y >= Streets[2] && y <= Streets[2] + 3 && x > GoodsYard.xMax - 1) return "road";
+        if (!GoodsYard.Contains(new Vector2Int(x, y))) return "grass";
+        return System.Array.IndexOf(Tracks, y) >= 0 ? "rail" : "gravel";
+    }
     static readonly RectInt Yard = new(-24, 58, 49, 35);
 
     // Inclusive corners, which is easier to read for paths than x/y/width/height.
@@ -91,19 +104,20 @@ public static class TownBuilder
         new GameObject("SpawnPoint").transform.position = new Vector3(-9f, 0.5f, 0f);
         var dogSpot = new GameObject("DogSpot").transform;
         dogSpot.position = new Vector3(-5f, 2.8f, 0f);
-        var (east, north) = BuildExits();
+        var (east, north, west) = BuildExits();
         BuildQuestItems();
         var network = BuildNetwork(playerPrefab, minminiPrefab, dogPrefab, bandicootPrefab, BuildMinminiSpots(), dogSpot);
         Set(network.GetComponent<WorldSpawner>(), "bandicootPrefab", bandicootPrefab.GetComponent<NetworkObject>());
         Set(network.GetComponent<WorldSpawner>(), "bandicootSpots", BuildBandicootSpots());
 
-        Set(network.GetComponent<WorldSpawner>(), "minminiCount", 60);
+        Set(network.GetComponent<WorldSpawner>(), "minminiCount", 72);
 
         var quests = new GameObject("Quests");
         quests.AddComponent<NetworkObject>();
         var questState = new SerializedObject(quests.AddComponent<Quests>());
         BuildFields(questState);
         BuildCinema(questState, north, network.GetComponent<WorldSpawner>());
+        BuildGoodsYard(questState, west);
         Fill(questState.FindProperty("powerOn"), powerLights);
         Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
         questState.ApplyModifiedPropertiesWithoutUndo();
@@ -339,6 +353,7 @@ public static class TownBuilder
     {
         if (x >= FieldsStart) return FieldAt(x, y);
         if (y >= Yard.yMin) return CinemaAt(x, y);
+        if (x < -65) return YardAt(x, y);
 
         bool inTown = x >= Roads[0] && x <= Roads[2] + 3 && y >= Streets[2] && y <= Streets[0] + 3;
 
@@ -381,7 +396,7 @@ public static class TownBuilder
         wet.gameObject.AddComponent<TilemapCollider2D>().compositeOperation = Collider2D.CompositeOperation.Merge;
         wet.gameObject.AddComponent<CompositeCollider2D>();
 
-        for (int x = -HalfWidth - 16; x < FieldsEnd + 16; x++)
+        for (int x = WestEnd - 16; x < FieldsEnd + 16; x++)
         for (int y = -HalfHeight - 10; y < NorthEnd + 10; y++)
         {
             int variant = Mathf.Abs(x * 7 + y * 13 + x * y) % 3;
@@ -493,15 +508,15 @@ public static class TownBuilder
 
     // The roads out of town are closed until later chapters.
     // Returns the east and north barricades, which come down as chapters are finished.
-    static (GameObject east, GameObject north) BuildExits()
+    static (GameObject east, GameObject north, GameObject west) BuildExits()
     {
         var east = Barricade(new Vector3(61f, 0f, 0f), true,
             "|ROAD CLOSED. The line to the paddy fields is down. Get the power back on first.");
         var north = Barricade(new Vector3(0f, 37f, 0f), false,
             "|ROAD CLOSED. Beyond here is the old Raja Talkies. Nobody goes there after dark.");
-        Barricade(new Vector3(-61f, -24f, 0f), true,
-            "|ROAD CLOSED. The goods yard is past the level crossing.   (Chapter 4)");
-        return (east, north);
+        var west = Barricade(new Vector3(-61f, -24f, 0f), true,
+            "|LEVEL CROSSING CLOSED. The goods yard is beyond. No entry after dark.");
+        return (east, north, west);
     }
 
     static GameObject Barricade(Vector3 centre, bool acrossHorizontalRoad, string sign)
@@ -737,6 +752,85 @@ public static class TownBuilder
         quests.FindProperty("minnalOnScreen").objectReferenceValue = minnal;
     }
 
+    // Chapter 4: the goods yard. Three engines shunting on three tracks, four
+    // lost lanterns, three point levers, and the signal cabin to power.
+    static void BuildGoodsYard(SerializedObject quests, GameObject westBarricade)
+    {
+        (float x, float speed)[] engines = { (-100f, 9f), (-125f, 13f), (-90f, 7f) };
+        for (int i = 0; i < Tracks.Length; i++)
+        {
+            var engine = Prop("Shunting Engine", "Props/engine", new Vector3(engines[i].x, Tracks[i] + 0.2f, 0f));
+            Light(Child(engine, "Headlamp", new Vector3(0f, 1.3f, 0f)), new Color(1f, 0.95f, 0.75f), 1.4f, 1f, 6f);
+            Glow(engine, new Vector3(0f, 1.4f, 0f), new Color(1f, 0.95f, 0.7f), 0.5f);
+            engine.AddComponent<NetworkObject>();
+            SyncedPosition(engine);
+            var train = new SerializedObject(engine.AddComponent<Train>());
+            train.FindProperty("body").objectReferenceValue = engine.GetComponent<SpriteRenderer>();
+            train.FindProperty("speed").floatValue = engines[i].speed;
+            train.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        var cabinHouse = Building("Signal Cabin", "Props/cabin_off", -136f, -10.6f);
+        Act(cabinHouse, "Inspect", "cabin");
+        var pool = Light(Child(cabinHouse, "Pool", new Vector3(0f, -0.6f, 0f)), Warm, 1.4f, 1.2f, 6.5f);
+        var glow = Glow(cabinHouse, new Vector3(1.7f, 4f, 0f), new Color(0.5f, 1f, 0.6f), 0.6f);
+        cabinHouse.AddComponent<NetworkObject>();
+        var cabin = cabinHouse.AddComponent<StreetLight>();
+        Set(cabin, "needed", 5);
+        Set(cabin, "isStreetlight", false);
+        Set(cabin, "pole", cabinHouse.GetComponent<SpriteRenderer>());
+        Set(cabin, "litSprite", Load("Props/cabin_on"));
+        Set(cabin, "deadSprite", Load("Props/cabin_off"));
+        Set(cabin, "pool", pool);
+        Set(cabin, "glow", glow);
+
+        var levers = quests.FindProperty("levers");
+        levers.arraySize = 3;
+        for (int i = 0; i < 3; i++)
+        {
+            var lever = Prop("Point Lever", "Props/lever_down", new Vector3(-130f + i * 2f, -12.4f, 0f));
+            Solid(lever, 0.5f, 0.3f);
+            Act(lever, "Pull the lever", $"lever{i}");
+            levers.GetArrayElementAtIndex(i).objectReferenceValue = lever.GetComponent<SpriteRenderer>();
+        }
+        var board = Prop("Notice Board", "Props/notice_board", new Vector3(-123f, -12.3f, 0f));
+        Solid(board, 1.2f, 0.3f);
+        Act(board, "Read", "points");
+
+        Vector3[] lanterns = { new(-92f, -17.5f, 0f), new(-118f, -27f, 0f), new(-104f, -35.5f, 0f), new(-143f, -18f, 0f) };
+        for (int i = 0; i < lanterns.Length; i++)
+            Pickup("Signal Lantern", "Items/lantern", lanterns[i], $"lantern{i}");
+
+        var rani = Prop("Signal Rani", "Characters/rani", new Vector3(-72.5f, -27.6f, 0f));
+        Solid(rani, 0.6f, 0.4f);
+        Act(rani, "Talk", "rani");
+        var lamp = Child(rani, "Lantern", new Vector3(0.5f, 0.6f, 0f));
+        Light(lamp, new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.5f);
+        lamp.AddComponent<FlickerLight>();
+        Glow(rani, new Vector3(0.5f, 0.6f, 0f), new Color(1f, 0.75f, 0.4f), 0.3f);
+
+        var entrance = new GameObject("Yard Entrance");
+        entrance.transform.position = new Vector3(-67.5f, -24.5f, 0f);
+
+        var minnal = Prop("Minnal On Signal", "Characters/minnal", new Vector3(-134.3f, -6.2f, 0f));
+        var minnalSprite = minnal.GetComponent<SpriteRenderer>();
+        minnalSprite.sharedMaterial = GlowMaterial();
+        minnalSprite.sortingOrder = GlowOrder;
+        var cameo = minnal.AddComponent<MinnalCameo>();
+        Set(cameo, "glow", Light(minnal, new Color(1f, 0.95f, 0.6f), 3f, 0.3f, 5f));
+        var escape = new SerializedObject(cameo);
+        escape.FindProperty("escape").vector3Value = new Vector3(-30f, 14f, 0f);
+        escape.ApplyModifiedPropertiesWithoutUndo();
+        minnal.SetActive(false);
+
+        Fill(quests.FindProperty("filmOff"), new List<GameObject> { westBarricade });
+        quests.FindProperty("cabin").objectReferenceValue = cabin;
+        quests.FindProperty("leverUp").objectReferenceValue = Load("Props/lever_up");
+        quests.FindProperty("leverDown").objectReferenceValue = Load("Props/lever_down");
+        quests.FindProperty("yardEntrance").objectReferenceValue = entrance.transform;
+        quests.FindProperty("minnalOnSignal").objectReferenceValue = minnal;
+    }
+
     // Adds a prefab to the list of things the server is allowed to spawn.
     static void AddSpawnable(GameObject prefab)
     {
@@ -773,9 +867,9 @@ public static class TownBuilder
     {
         var random = new System.Random(11);
         int planted = 0;
-        for (int attempt = 0; attempt < 4000 && planted < 210; attempt++)
+        for (int attempt = 0; attempt < 6000 && planted < 300; attempt++)
         {
-            float x = random.Next(-HalfWidth - 6, HalfWidth + 6) + (float)random.NextDouble();
+            float x = random.Next(WestEnd, HalfWidth + 6) + (float)random.NextDouble();
             float y = random.Next(-HalfHeight - 4, NorthEnd + 4) + (float)random.NextDouble();
             var point = new Vector2(x, y);
 
@@ -815,7 +909,12 @@ public static class TownBuilder
             float x = random.Next(-22, 22) + 0.5f, y = random.Next(44, 90) + 0.5f;
             if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
         }
-        while (spots.childCount < 140) // and some out in the fields
+        while (spots.childCount < 132) // some in the goods yard
+        {
+            float x = random.Next(GoodsYard.xMin + 2, GoodsYard.xMax - 2) + 0.5f, y = random.Next(GoodsYard.yMin + 2, GoodsYard.yMax - 2) + 0.5f;
+            Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
+        }
+        while (spots.childCount < 162) // and some out in the fields
         {
             float x = random.Next(FieldsStart, FieldsEnd - 2) + 0.5f, y = random.Next(-24, 23) + 0.5f;
             if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
@@ -828,9 +927,9 @@ public static class TownBuilder
         var edge = new GameObject("World Bounds").AddComponent<EdgeCollider2D>();
         edge.points = new[]
         {
-            new Vector2(-HalfWidth, -HalfHeight), new Vector2(FieldsEnd, -HalfHeight),
-            new Vector2(FieldsEnd, NorthEnd), new Vector2(-HalfWidth, NorthEnd),
-            new Vector2(-HalfWidth, -HalfHeight),
+            new Vector2(WestEnd, -HalfHeight), new Vector2(FieldsEnd, -HalfHeight),
+            new Vector2(FieldsEnd, NorthEnd), new Vector2(WestEnd, NorthEnd),
+            new Vector2(WestEnd, -HalfHeight),
         };
     }
 

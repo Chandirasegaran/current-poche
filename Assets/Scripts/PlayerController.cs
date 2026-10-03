@@ -91,15 +91,16 @@ public class PlayerController : NetworkBehaviour
         if (Local == this) Local = null;
     }
 
-    // Sent by the server to the player's own machine when a ghost catches them.
+    // Sent by the server to the player's own machine when a ghost or a train
+    // catches them: they are put back at a safe spot.
     [Rpc(SendTo.Owner)]
-    public void SpookRpc(Vector3 backTo)
+    public void SpookRpc(Vector3 backTo, string message)
     {
         rb.position = backTo;
         transform.position = backTo;
         Sfx.Play("fail");
         if (GameUI.Instance != null)
-            GameUI.Instance.Toast("The ghost got you! You ran all the way back to the gate.\nPoint your torch at it and it freezes.", 5f);
+            GameUI.Instance.Toast(message, 5f);
     }
 
     void Update()

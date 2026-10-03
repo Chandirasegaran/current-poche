@@ -58,7 +58,8 @@ public class Ghost : NetworkBehaviour
             Move(nearest.transform.position, 2.6f);
             if (closest < 0.7f)
             {
-                nearest.SpookRpc(Quests.Instance.SpookPoint);
+                nearest.SpookRpc(Quests.Instance.SpookPoint,
+                    "The ghost got you! You ran all the way back to the gate.\nPoint your torch at it and it freezes.");
                 GetComponent<NetworkTransform>().Teleport(home, Quaternion.identity, Vector3.one);
             }
             return;

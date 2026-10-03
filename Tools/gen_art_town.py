@@ -847,6 +847,109 @@ def make_cinema_art():
     save(small([".ggg.", "g.g.g", "ggwgg", "g.g.g", ".ggg."], {"g": "#6f7683", "w": "#f3ead7"}), "Items", "reel.png")
 
 
+# ---------------------------------------------------------------- chapter 4: the goods yard
+
+def gravel_tile(seed, rails=False):
+    rnd = random.Random(seed)
+    img = Image.new("RGBA", (16, 16), rgb("#6f6a63"))
+    px = img.load()
+    for _ in range(60):
+        px[rnd.randrange(16), rnd.randrange(16)] = rgb(rnd.choice(["#5f5a54", "#7d7870", "#888279"]))
+    if rails:
+        for x in range(1, 16, 5):  # sleepers
+            for y in range(2, 14):
+                px[x, y] = rgb("#5a4030")
+                px[x + 1, y] = rgb("#4a3426")
+        for y in (4, 11):  # the two rails
+            for x in range(16):
+                px[x, y] = rgb("#c9cdd6")
+                px[x, y + 1] = rgb("#6f7683")
+    return img
+
+
+def engine():
+    w, h = 96, 44
+    img = Image.new("RGBA", (w, h), CLEAR)
+    d = ImageDraw.Draw(img)
+    body = rgb("#2f7a55")
+    d.rectangle([4, 14, 91, 34], fill=body)
+    d.rectangle([4, 26, 91, 30], fill=rgb("#e9c53a"))  # warning stripe
+    d.rectangle([4, 14, 91, 16], fill=shade(body, 1.3))
+    d.rectangle([56, 4, 80, 16], fill=shade(body, 0.85))  # cab
+    d.rectangle([59, 7, 67, 13], fill=rgb("#141726"))
+    d.rectangle([69, 7, 77, 13], fill=rgb("#141726"))
+    d.rectangle([14, 8, 20, 14], fill=rgb("#3a3d46"))  # exhaust
+    d.rectangle([28, 10, 46, 14], fill=shade(body, 0.7))
+    for x in range(10, 52, 6):  # radiator slats
+        d.line([x, 18, x, 24], fill=shade(body, 0.6))
+    d.rectangle([88, 18, 93, 24], fill=rgb("#fff2b3"))  # headlamp
+    d.rectangle([2, 34, 93, 37], fill=rgb("#3a3d46"))
+    for cx in (14, 30, 62, 78):
+        d.ellipse([cx - 5, 33, cx + 5, 43], fill=rgb("#2a2630"))
+        d.ellipse([cx - 2, 36, cx + 2, 40], fill=rgb("#8b93a1"))
+    return outlined(img)
+
+
+def lever(up):
+    img = Image.new("RGBA", (14, 18), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([3, 13, 10, 17], fill=rgb("#5a606c"))
+    if up:
+        d.line([6, 13, 6, 2], fill=rgb("#c9cdd6"), width=2)
+        d.rectangle([5, 0, 8, 3], fill=rgb("#57c06a"))
+    else:
+        d.line([6, 13, 12, 6], fill=rgb("#c9cdd6"), width=2)
+        d.rectangle([11, 4, 13, 7], fill=rgb("#c0392b"))
+    return outlined(img)
+
+
+def signal_cabin(green):
+    img = Image.new("RGBA", (64, 68), CLEAR)
+    d = ImageDraw.Draw(img)
+    brick = rgb("#8a4a3c")
+    d.rectangle([4, 34, 59, 63], fill=brick, outline=OUTLINE)
+    for y in range(38, 63, 4):
+        d.line([5, y, 58, y], fill=shade(brick, 0.72))
+    d.rectangle([24, 44, 37, 63], fill=rgb("#2a1f2b"), outline=OUTLINE)
+    top = rgb("#d9cdb0")
+    d.rectangle([2, 14, 61, 34], fill=top, outline=OUTLINE)
+    for x in range(6, 58, 13):
+        d.rectangle([x, 18, x + 9, 30], fill=rgb("#fff2b3") if green else rgb("#141726"), outline=OUTLINE)
+    d.polygon([(0, 14), (63, 14), (54, 4), (9, 4)], fill=rgb("#b4553b"), outline=OUTLINE)
+    d.rectangle([56, 0, 62, 12], fill=rgb("#3a3d46"), outline=OUTLINE)  # the signal lamp
+    d.ellipse([57, 2, 61, 6], fill=rgb("#57e07a") if green else rgb("#ff4a3a"))
+    stone = rgb("#8f867a")
+    d.rectangle([0, 64, 63, 67], fill=stone, outline=OUTLINE)
+    return img
+
+
+def notice_board():
+    img = Image.new("RGBA", (24, 26), CLEAR)
+    d = ImageDraw.Draw(img)
+    for x in (3, 19):
+        d.rectangle([x, 12, x + 1, 25], fill=rgb("#6b4c33"))
+    d.rectangle([0, 0, 23, 15], fill=rgb("#e8dfcc"), outline=OUTLINE)
+    for i, up in enumerate((True, False, True)):  # the lever diagram
+        x = 5 + i * 6
+        d.line([x, 11, x, 4] if up else [x, 11, x + 3, 7], fill=rgb("#17131f"))
+        d.rectangle([x - 1, 11, x + 1, 12], fill=rgb("#c0392b"))
+    return img
+
+
+def make_yard_art():
+    for i in range(3):
+        save(gravel_tile(750 + i), "Tiles", f"gravel_{i}.png")
+        save(gravel_tile(760 + i, rails=True), "Tiles", f"rail_{i}.png")
+    save(engine(), "Props", "engine.png")
+    save(lever(True), "Props", "lever_up.png")
+    save(lever(False), "Props", "lever_down.png")
+    save(signal_cabin(False), "Props", "cabin_off.png")
+    save(signal_cabin(True), "Props", "cabin_on.png")
+    save(notice_board(), "Props", "notice_board.png")
+    save(adult("#2a2233", "#b9774d", "#f3ead7", "#2c3a66", hem="#2c3a66", hat="#2c3a66", bun=False), "Characters", "rani.png")
+    save(small([".hh.", "rrrr", "ryyr", "ryyr", "rrrr", ".bb."], {"h": "#6f7683", "r": "#c0392b", "y": "#ffe27a", "b": "#3a3d46"}), "Items", "lantern.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -855,3 +958,4 @@ def main():
     make_quest_art()
     make_fields_art()
     make_cinema_art()
+    make_yard_art()

@@ -32,7 +32,21 @@ public class Quests : NetworkBehaviour
         BridgeDown = 128, BeltTaken = 256, BeltFitted = 512, PumpStarted = 1024,
         // Chapter 3: Raja Talkies
         FilmPlayed = 2048,
+        // Chapter 4: the goods yard
+        YardDone = 4096,
     }
+
+    public const int LanternCount = 4;
+    const int LeverPattern = 0b101; // levers 1 and 3 up, lever 2 down, as on the notice board
+
+    static readonly string[] YardEnding =
+    {
+        "|The signal blinks from red to green. Out in the dark, a long goods train that has waited all night gives one tired whistle and begins to roll.",
+        "|Riding on its headlamp, legs dangling, is the little lightning. It waves. You think it waves.",
+        "Signal Rani|Thirty years on the railways, and that is the first passenger I have seen travel on the OUTSIDE of the lamp.",
+        "Signal Rani|That train climbs to the windmill ridge, kanna, and then down to the old dam. If your bright friend is going home, it is going that way.",
+        "|CHAPTER 4 COMPLETE.   (Chapter 5: Kaatthaadi Hills is coming.)",
+    };
 
     public const int ReelCount = 3;
 
@@ -43,7 +57,7 @@ public class Quests : NetworkBehaviour
         "Watchman Kannan|Aiyo. THAT is no ghost. The ghost was only my bedsheets on the line. That is something else.",
         "|The little lightning notices you. It squeaks, pulls the glow off the screen like a blanket, and shoots away west, along the railway line.",
         "Watchman Kannan|Poor thing. I think it only wanted a night-light. ...West is the goods yard, kanna. Mind the trains.",
-        "|CHAPTER 3 COMPLETE.   (Chapter 4: Goods Yard is coming.)",
+        "|CHAPTER 3 COMPLETE.   The level crossing on Tank Road is open. The goods yard is west of town.",
     };
 
     const float ValveSeconds = 30f;
@@ -74,6 +88,12 @@ public class Quests : NetworkBehaviour
     [SerializeField] Sprite mirrorSlash, mirrorBackslash;
     [SerializeField] LineRenderer beam;
     [SerializeField] GameObject screenGlow, minnalOnScreen;
+    [SerializeField] GameObject[] filmOff; // removed once the film has played (the west barricade)
+    [SerializeField] StreetLight cabin;
+    [SerializeField] SpriteRenderer[] levers;
+    [SerializeField] Sprite leverUp, leverDown;
+    [SerializeField] Transform yardEntrance;
+    [SerializeField] GameObject minnalOnSignal;
 
     readonly NetworkVariable<int> flags = new();
     readonly NetworkVariable<int> ballMask = new();
@@ -83,7 +103,15 @@ public class Quests : NetworkBehaviour
     readonly NetworkVariable<int> reelMask = new();   // which film reels have been found
     readonly NetworkVariable<int> mirrorMask = new(); // which mirrors lean like a forward slash
 
+    readonly NetworkVariable<int> lanternMask = new(); // which signal lanterns have been found
+    readonly NetworkVariable<int> leverMask = new();   // which point levers are up
+
     readonly List<Vector3> beamPoints = new();
+
+    public bool YardDone => Has(Flag.YardDone);
+    public Vector3 YardEntrance => yardEntrance.position;
+    int LanternsFound => Bits(lanternMask.Value, LanternCount);
+    bool PointsSet => leverMask.Value == LeverPattern;
 
     public bool FilmPlayed => Has(Flag.FilmPlayed);
     public Vector3 SpookPoint => spookPoint.position;
@@ -152,7 +180,7 @@ public class Quests : NetworkBehaviour
     [Serializable]
     class SaveData
     {
-        public int flags, ballMask, fuses, reelMask, mirrorMask;
+        public int flags, ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask;
         public List<string> lit = new(); // which lamps (and the pump) are powered
     }
 
@@ -177,6 +205,7 @@ public class Quests : NetworkBehaviour
         {
             flags = flags.Value, ballMask = ballMask.Value, fuses = fuses.Value,
             reelMask = reelMask.Value, mirrorMask = mirrorMask.Value,
+            lanternMask = lanternMask.Value, leverMask = leverMask.Value,
         };
         foreach (var lamp in StreetLight.Feedable)
             if (lamp.IsLit) data.lit.Add(Key(lamp));
@@ -206,6 +235,8 @@ public class Quests : NetworkBehaviour
         fuses.Value = data.fuses;
         reelMask.Value = data.reelMask;
         mirrorMask.Value = data.mirrorMask;
+        lanternMask.Value = data.lanternMask;
+        leverMask.Value = data.leverMask;
         foreach (var lamp in StreetLight.Feedable)
             if (data.lit.Contains(Key(lamp)) && !lamp.IsLit) lamp.ForceLit();
         yield return null;
@@ -260,9 +291,9 @@ public class Quests : NetworkBehaviour
             flags.Value = ballMask.Value = fuses.Value = 0;
             iceMeltsAt.Value = 0;
             valveShutsAt.Value = Vector3.zero;
-            reelMask.Value = mirrorMask.Value = 0;
+            reelMask.Value = mirrorMask.Value = lanternMask.Value = leverMask.Value = 0;
             StartCoroutine(Load());
-            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask })
+            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask })
                 counter.OnValueChanged += OnCounterChanged;
         }
         flags.OnValueChanged += OnFlagsChanged;
@@ -271,7 +302,7 @@ public class Quests : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         flags.OnValueChanged -= OnFlagsChanged;
-        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask })
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask })
             counter.OnValueChanged -= OnCounterChanged;
     }
 
@@ -286,6 +317,12 @@ public class Quests : NetworkBehaviour
 
         if (Became(Flag.PowerRestored)) Sfx.Play("power");
         if (Became(Flag.BridgeDown)) Sfx.Play("lamp");
+        if (Became(Flag.YardDone))
+        {
+            Sfx.Play("power");
+            minnalOnSignal.SetActive(true);
+            if (GameUI.Instance != null) GameUI.Instance.Say(YardEnding);
+        }
         if (Became(Flag.FilmPlayed))
         {
             Sfx.Play("power");
@@ -358,8 +395,15 @@ public class Quests : NetworkBehaviour
         }
         screenGlow.SetActive(IsSpawned && FilmPlayed);
 
+        // The goods yard.
+        foreach (var go in filmOff) go.SetActive(!(IsSpawned && FilmPlayed));
+        for (int i = 0; i < levers.Length; i++)
+            levers[i].sprite = (leverMask.Value & (1 << i)) != 0 ? leverUp : leverDown;
+
         if (IsSpawned && IsServer)
         {
+            cabin.Locked = LanternsFound < LanternCount || !PointsSet;
+            if (cabin.IsLit && !YardDone) Raise(Flag.YardDone);
             projector.Locked = ReelsFound < ReelCount;
             if (onScreen && !FilmPlayed) Raise(Flag.FilmPlayed);
             pump.Locked = !Has(Flag.BeltFitted);
@@ -386,6 +430,7 @@ public class Quests : NetworkBehaviour
         if (action == "glasses") return !Has(Flag.GlassesFound);
         if (action.StartsWith("ball")) return (ballMask.Value & (1 << (action[4] - '0'))) == 0;
         if (action.StartsWith("reel")) return (reelMask.Value & (1 << (action[4] - '0'))) == 0;
+        if (action.StartsWith("lantern")) return (lanternMask.Value & (1 << (action[7] - '0'))) == 0;
         return true;
     }
 
@@ -393,7 +438,12 @@ public class Quests : NetworkBehaviour
     public string LogText()
     {
         if (!IsSpawned) return "";
-        if (FilmPlayed) return "Chapter 3 complete!\nMore is coming.";
+        if (YardDone) return "Chapter 4 complete!\nMore is coming.";
+        if (FilmPlayed)
+            return "Goods Yard\n"
+                   + (LanternsFound == LanternCount ? "+ " : "- ") + $"Lanterns {LanternsFound}/{LanternCount}\n"
+                   + (PointsSet ? "+ " : "- ") + "Set the points\n"
+                   + $"- Power the cabin {cabin.Charge}/{cabin.Needed}";
         if (Has(Flag.PumpStarted))
             return "Raja Talkies\n"
                    + (ReelsFound == ReelCount ? "+ " : "- ") + $"Film reels {ReelsFound}/{ReelCount}\n"
@@ -432,6 +482,7 @@ public class Quests : NetworkBehaviour
         switch (action)
         {
             case "lineman":
+                if (YardDone) return new[] { "Lineman Murugesan|It took the TRAIN? Up to the windmills? Of course it did. Everybody leaves this town by the night goods." };
                 if (FilmPlayed) return new[] { "Lineman Murugesan|West, along the railway? Then it is heading for the goods yard. I will oil my cycle. You get some sleep." };
                 if (Has(Flag.PumpStarted)) return new[] { "Lineman Murugesan|A lightning bolt. With EYES. Thambi, I have worked for the Electricity Board for nineteen years and nobody told me about this." };
                 if (PowerRestored) return new[] { "Lineman Murugesan|Did you see where those minminis went? East, over the fields. The road is open now. Go and see old Periyasamy at the pump-set, and mind the bunds: one wrong step and you are in the paddy." };
@@ -531,7 +582,8 @@ public class Quests : NetworkBehaviour
                 };
         }
 
-        if (action.StartsWith("mirror")) return Array.Empty<string>();
+        if (action.StartsWith("mirror") || action.StartsWith("lever")) return Array.Empty<string>();
+        if (action.StartsWith("lantern")) return new[] { $"|A signalman's lantern, red glass on one side and green on the other. That makes {LanternsFound + 1} of {LanternCount}." };
         if (action.StartsWith("reel")) return new[] { $"|A dusty reel of film. The label says PART {action[4] - '0' + 1}. That makes {ReelsFound + 1} of {ReelCount}." };
 
         if (action.StartsWith("valve"))
@@ -547,6 +599,27 @@ public class Quests : NetworkBehaviour
                 return Has(Flag.BridgeDown)
                     ? new[] { "|The sluice bridge is down. The canal rushes underneath." }
                     : new[] { "|The sluice bridge is raised. A faded sign: OPEN ALL THREE VALVES TO LOWER. There are valve wheels out on the bunds, north, south and east of here." };
+
+            case "rani":
+                if (YardDone) return new[] { "Signal Rani|Green all the way to the hills. Go on, catch your train of thought." };
+                if (cabin.IsLit) return new[] { "Signal Rani|She is lit!" };
+                if (LanternsFound == LanternCount && PointsSet) return new[] { $"Signal Rani|Lanterns hung, points set. All the cabin needs now is current. {cabin.Needed} of your glow-bugs, up at the signal cabin on the far side." };
+                return new[]
+                {
+                    "Signal Rani|Stop right there. Goods yard. Three tracks, three engines, and not one of their drivers can see you in the dark.",
+                    "Signal Rani|The night goods is stuck at the home signal because my cabin has no power. Something bright is sitting on its headlamp, and it will not move until the train does.",
+                    $"Signal Rani|Help me get the signal to green. I need my {LanternCount} signal lanterns, which the wind scattered between the tracks. You have {LanternsFound}. And the three point levers by the cabin must be set as the notice board shows.",
+                    "Signal Rani|Cross BEHIND the engines, never in front. If you see a headlamp coming, you run.",
+                };
+
+            case "points":
+                return new[] { "|A notice board with a faded diagram of the three point levers: the first UP, the second DOWN, the third UP." };
+
+            case "cabin":
+                if (cabin.IsLit) return new[] { "|The signal cabin hums. The lamp on top shines green." };
+                if (LanternsFound < LanternCount) return new[] { $"|The signal cabin is dark. There are four empty hooks for lanterns by the door. Lanterns: {LanternsFound} of {LanternCount}." };
+                if (!PointsSet) return new[] { "|The lanterns are hung. A buzzer complains: the points are set wrong. Check the notice board." };
+                return new[] { $"|Lanterns hung, points set. The cabin only needs power now: {cabin.Needed} minminis." };
 
             case "watchman":
                 if (FilmPlayed) return new[] { "Watchman Kannan|Forty years of films on that screen, and the best show was tonight." };
@@ -656,7 +729,17 @@ public class Quests : NetworkBehaviour
                 break;
 
             default:
-                if (action.StartsWith("mirror") && action.Length == 7)
+                if (action.StartsWith("lever") && action.Length == 6)
+                {
+                    leverMask.Value ^= 1 << (action[5] - '0');
+                    AnnounceRpc("", "click");
+                }
+                else if (action.StartsWith("lantern") && action.Length == 8)
+                {
+                    lanternMask.Value |= 1 << (action[7] - '0');
+                    AnnounceRpc("", "pickup");
+                }
+                else if (action.StartsWith("mirror") && action.Length == 7)
                 {
                     mirrorMask.Value ^= 1 << (action[6] - '0');
                     AnnounceRpc("", "click");
