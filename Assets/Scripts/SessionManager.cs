@@ -80,8 +80,11 @@ public class SessionManager : MonoBehaviour
     {
         var network = NetworkManager.Singleton;
         var transport = network.GetComponent<UnityTransport>();
-#if UNITY_WEBGL && !UNITY_EDITOR
+#if UNITY_WEBGL
+        // (Also true in the Editor while its build target is set to Web.)
         transport.UseWebSockets = true;
+#else
+        transport.UseWebSockets = false;
 #endif
         network.NetworkConfig.NetworkTransport = transport;
     }
@@ -110,8 +113,41 @@ public class SessionManager : MonoBehaviour
     void Watch(ISession session)
     {
         Session = session;
-        session.RemovedFromSession += () => { if (Session == session) Session = null; };
-        session.Deleted += () => { if (Session == session) Session = null; };
+        session.RemovedFromSession += () => Ended(session, "You were removed from the game.");
+        session.Deleted += () => Ended(session, "The game ended: the host left. Your progress is saved.");
+    }
+
+    void Ended(ISession session, string message)
+    {
+        if (Session != session) return;
+        Session = null;
+        Status = message;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening) NetworkManager.Singleton.Shutdown();
+    }
+
+    float lostFor;
+
+    void Update()
+    {
+        // If the host quits or the connection drops, the network stops but the
+        // session lingers. Notice that and go back to the title screen with a
+        // message, instead of leaving the player staring at a frozen town.
+        var network = NetworkManager.Singleton;
+        bool lost = Session != null && !Busy && network != null && !network.IsListening;
+        lostFor = lost ? lostFor + Time.unscaledDeltaTime : 0f;
+        if (lostFor < 1.5f) return;
+
+        lostFor = 0f;
+        var gone = Session;
+        Session = null;
+        Status = "The game ended: the host left. Your progress is saved.";
+        Abandon(gone);
+    }
+
+    static async void Abandon(ISession session)
+    {
+        try { await session.LeaveAsync(); }
+        catch (Exception) { /* it was already gone */ }
     }
 
     public Task Leave()

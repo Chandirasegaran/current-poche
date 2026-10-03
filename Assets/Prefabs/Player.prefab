@@ -345,15 +345,6 @@ MonoBehaviour:
     sideIdle: {fileID: 21300000, guid: 8b5a5f5cda5494a9b9e034bc2c977c73, type: 3}
     sideWalk1: {fileID: 21300000, guid: 7e2c77f598083cf8cb2752c535910205, type: 3}
     sideWalk2: {fileID: 21300000, guid: a4981a1bf3095f22f80b4355bf1de850, type: 3}
-  - idle: {fileID: 21300000, guid: 5aa280269dbfdcb2883d6a6308a764a7, type: 3}
-    walk1: {fileID: 21300000, guid: f6a283952a10f6d149da35d148648845, type: 3}
-    walk2: {fileID: 21300000, guid: 8257b7cc41f1c79a2aa31c92835eb6f3, type: 3}
-    upIdle: {fileID: 21300000, guid: 3f85558218529d2d4a93dfe3276ed12a, type: 3}
-    upWalk1: {fileID: 21300000, guid: 200ad002fac73eb3ea4520cea211161a, type: 3}
-    upWalk2: {fileID: 21300000, guid: 4b8b12ceb97a70cc19d3e5231b29f1b9, type: 3}
-    sideIdle: {fileID: 21300000, guid: cdba19e5fe1123918910e2e7b3885bc3, type: 3}
-    sideWalk1: {fileID: 21300000, guid: a3b09afe942cd96638d21b86eb485d8f, type: 3}
-    sideWalk2: {fileID: 21300000, guid: 540b28f567eb587d0be4bb63d6ccf126, type: 3}
   - idle: {fileID: 21300000, guid: 070c224dfd3041de482123b15a19a7e6, type: 3}
     walk1: {fileID: 21300000, guid: a5df99cade91ed1e0a597fa62a6dab0d, type: 3}
     walk2: {fileID: 21300000, guid: 2c29aa3bb24eaa2ab8d34247beafd227, type: 3}
@@ -363,6 +354,33 @@ MonoBehaviour:
     sideIdle: {fileID: 21300000, guid: 86e6b60c435ecbeac9fe2a0067b6e504, type: 3}
     sideWalk1: {fileID: 21300000, guid: b355ddbd13e910292ad58c586f39e763, type: 3}
     sideWalk2: {fileID: 21300000, guid: f8c6b370f4a85599a83f5be59ca369c9, type: 3}
+  - idle: {fileID: 21300000, guid: f637f1a7e8df4e3b6a0424fff6d41200, type: 3}
+    walk1: {fileID: 21300000, guid: e434637a17397d65da97f1bbd9f954b6, type: 3}
+    walk2: {fileID: 21300000, guid: 88d8c7e7d25dad49a860a44d922d4b39, type: 3}
+    upIdle: {fileID: 21300000, guid: eb9cdd4f1178093658e61a45f1089e56, type: 3}
+    upWalk1: {fileID: 21300000, guid: 525236f77dd8c28919902a7c200826ee, type: 3}
+    upWalk2: {fileID: 21300000, guid: 6eade488d0cb0f4738dd9c3a86b31595, type: 3}
+    sideIdle: {fileID: 21300000, guid: f02c421882758b519846418f1d40452f, type: 3}
+    sideWalk1: {fileID: 21300000, guid: e2497c559a881128e848a79dc316a5b8, type: 3}
+    sideWalk2: {fileID: 21300000, guid: d92f552eeba7f0ce58bca51e3150159b, type: 3}
+  - idle: {fileID: 21300000, guid: 283120a7984db880abb9a451973fb557, type: 3}
+    walk1: {fileID: 21300000, guid: 65196218856eb2e4cae27436242558d4, type: 3}
+    walk2: {fileID: 21300000, guid: 586dc98f8e6f499e8b19af3b782da84d, type: 3}
+    upIdle: {fileID: 21300000, guid: 068f503851c94e9f3abb22c1c8baaf31, type: 3}
+    upWalk1: {fileID: 21300000, guid: b67909fb8b0b94261b2edbb61828ddda, type: 3}
+    upWalk2: {fileID: 21300000, guid: e937dc69f8dde29b1b8020d3adc4a8c7, type: 3}
+    sideIdle: {fileID: 21300000, guid: 3506faf13b0d6d948b104080abbfe62a, type: 3}
+    sideWalk1: {fileID: 21300000, guid: c5ab7a6c379bb093ba478211fdeee44c, type: 3}
+    sideWalk2: {fileID: 21300000, guid: 059d0cf3aff346b51939db90f2cb63ab, type: 3}
+  - idle: {fileID: 21300000, guid: 5aa280269dbfdcb2883d6a6308a764a7, type: 3}
+    walk1: {fileID: 21300000, guid: f6a283952a10f6d149da35d148648845, type: 3}
+    walk2: {fileID: 21300000, guid: 8257b7cc41f1c79a2aa31c92835eb6f3, type: 3}
+    upIdle: {fileID: 21300000, guid: 3f85558218529d2d4a93dfe3276ed12a, type: 3}
+    upWalk1: {fileID: 21300000, guid: 200ad002fac73eb3ea4520cea211161a, type: 3}
+    upWalk2: {fileID: 21300000, guid: 4b8b12ceb97a70cc19d3e5231b29f1b9, type: 3}
+    sideIdle: {fileID: 21300000, guid: cdba19e5fe1123918910e2e7b3885bc3, type: 3}
+    sideWalk1: {fileID: 21300000, guid: a3b09afe942cd96638d21b86eb485d8f, type: 3}
+    sideWalk2: {fileID: 21300000, guid: 540b28f567eb587d0be4bb63d6ccf126, type: 3}
   - idle: {fileID: 21300000, guid: 37fbc95122ed761c898f100f973a681e, type: 3}
     walk1: {fileID: 21300000, guid: d1ff11113d5a87eecb344411647bd05c, type: 3}
     walk2: {fileID: 21300000, guid: de15a7b5c61370073b3cb634f1bf47be, type: 3}
@@ -372,6 +390,24 @@ MonoBehaviour:
     sideIdle: {fileID: 21300000, guid: 3e96902c494055c3f8642d3707362a83, type: 3}
     sideWalk1: {fileID: 21300000, guid: 6f35d61bbe098852bae4d84c9ac0f1fe, type: 3}
     sideWalk2: {fileID: 21300000, guid: f5006343af1c8555ca52e0bf064036ce, type: 3}
+  - idle: {fileID: 21300000, guid: d6e1cbac46291d48796a3c3e24e4f516, type: 3}
+    walk1: {fileID: 21300000, guid: 7ba1a7564d036c9c1a87c6822c2975cd, type: 3}
+    walk2: {fileID: 21300000, guid: d548d49603955f19f96931add5ec2bab, type: 3}
+    upIdle: {fileID: 21300000, guid: 72fafb4153630127e86f6eaaa28de4bc, type: 3}
+    upWalk1: {fileID: 21300000, guid: 3f09162241ba331dab36afc47cd68c1f, type: 3}
+    upWalk2: {fileID: 21300000, guid: 50d900fdaf6e7239792ad5c0ec0594eb, type: 3}
+    sideIdle: {fileID: 21300000, guid: 27b7a3b43c2807344a56f7db75109c62, type: 3}
+    sideWalk1: {fileID: 21300000, guid: 71f00beb894e1197b9ef70f35138aa15, type: 3}
+    sideWalk2: {fileID: 21300000, guid: 086fc5f67daef99999828699ac2afdc9, type: 3}
+  - idle: {fileID: 21300000, guid: a1d1e390da2df0b4095f3ffcd9353eaf, type: 3}
+    walk1: {fileID: 21300000, guid: 51b29c638ee92a426a2fcb7e5256bea3, type: 3}
+    walk2: {fileID: 21300000, guid: ee075054873f06570b21d4571f39ee41, type: 3}
+    upIdle: {fileID: 21300000, guid: a1c186dfe030b424fa06facc02984a83, type: 3}
+    upWalk1: {fileID: 21300000, guid: 2eac1958d2af8df91ad53c8201c32343, type: 3}
+    upWalk2: {fileID: 21300000, guid: ea62fff3eeabea76fadc2b555f9a5c0f, type: 3}
+    sideIdle: {fileID: 21300000, guid: 6175cc30877736631995e666af191f68, type: 3}
+    sideWalk1: {fileID: 21300000, guid: 5d214e7e6e1611ac4af03aedb0b27d4d, type: 3}
+    sideWalk2: {fileID: 21300000, guid: ef9f2631524bd3259a9432495d7a1c9f, type: 3}
   torch: {fileID: 6508505236172818437}
   carryIcon: {fileID: 660227721602417987}
   itemSprites:
@@ -522,7 +558,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363316435288347
+    rid: 7806363316435288731
   m_FalloffIntensity: 0.65
   m_Color: {r: 1, g: 0.9, b: 0.75, a: 1}
   m_Intensity: 0.55
@@ -568,7 +604,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363316435288347
+    - rid: 7806363316435288731
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3
@@ -626,7 +662,7 @@ MonoBehaviour:
   m_Light2DProvider:
     rid: -2
   m_SelectionSources:
-    rid: 7806363316435288346
+    rid: 7806363316435288730
   m_FalloffIntensity: 0.6
   m_Color: {r: 1, g: 0.92, b: 0.72, a: 1}
   m_Intensity: 1.9
@@ -672,7 +708,7 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 7806363316435288346
+    - rid: 7806363316435288730
       type: {class: Light2DProviderSources, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data:
         m_SelectedHashCode: 3

@@ -123,11 +123,16 @@ LEGS = {
 }
 
 KIDS = [
-    # name,     hair,      skin,      shirt,     shorts,    braids
-    ("kavin", "#2a2233", "#c98b5e", "#e9b63a", "#3b5d8f", False),
-    ("yazhini", "#1f1a2b", "#b9774d", "#d9486a", "#3a3f6b", True),
-    ("abdul", "#33261f", "#d39c6c", "#3fae8f", "#4a4458", False),
-    ("mercy", "#241c26", "#a86a45", "#7d6be0", "#2f4a57", True),
+    # Four boys, then four girls. The picker on the title screen shows them in this order.
+    # name,     hair,      skin,      shirt,     shorts,    braids, extra
+    ("kavin", "#2a2233", "#c98b5e", "#e9b63a", "#3b5d8f", False, None),
+    ("abdul", "#33261f", "#d39c6c", "#3fae8f", "#4a4458", False, None),
+    ("arul", "#1f1a2b", "#b9774d", "#e2574c", "#2f3a5a", False, "glasses"),
+    ("muthu", "#2a2233", "#8f5c3a", "#f3ead7", "#5a7a3a", False, None),
+    ("yazhini", "#1f1a2b", "#b9774d", "#d9486a", "#3a3f6b", True, None),
+    ("mercy", "#241c26", "#a86a45", "#7d6be0", "#2f4a57", True, None),
+    ("nila", "#2a2233", "#d39c6c", "#3f8fd9", "#6a3f6b", False, "bun"),
+    ("kayal", "#33261f", "#c98b5e", "#f08a3c", "#3a5a4a", True, None),
 ]
 
 
@@ -148,7 +153,7 @@ SIDE_HEAD = {
 }
 
 
-def kid_frame(hair, skin, shirt, shorts, braids, legs, view="down"):
+def kid_frame(hair, skin, shirt, shorts, braids, legs, view="down", extra=None):
     hair, skin, shirt, shorts = rgb(hair), rgb(skin), rgb(shirt), rgb(shorts)
     pal = {
         ".": CLEAR,
@@ -178,18 +183,33 @@ def kid_frame(hair, skin, shirt, shorts, braids, legs, view="down"):
             for x in ((2,) if view == "side" else (2, 13)):
                 px[x, y] = pal["h"] if y < 11 else rgb("#f25c5c")
             px[1, y] = pal["o"] if px[1, y] == CLEAR else px[1, y]
-            px[14, y] = pal["o"] if px[14, y] == CLEAR else px[14, y]
+            if view != "side":
+                px[14, y] = pal["o"] if px[14, y] == CLEAR else px[14, y]
         for x in ((2,) if view == "side" else (2, 13)):
             px[x, 12] = pal["o"]
+    if extra == "bun":  # hair tied up on top of the head
+        for x in (7, 8):
+            px[x, 0] = pal["H"]
+        px[6, 0] = px[9, 0] = pal["o"]
+    lens = rgb("#cfe3ea")
+    if extra == "glasses" and view == "down":  # pale lenses either side of each eye, joined by a bridge
+        for x in (4, 6, 9, 11):
+            px[x, 7] = lens
+        px[7, 7] = px[8, 7] = pal["o"]
+    if extra == "glasses" and view == "side":
+        px[10, 7] = lens
+        px[9, 7] = pal["o"]
     return img
 
 
 def make_characters():
-    for name, hair, skin, shirt, shorts, braids in KIDS:
+    for number, (name, hair, skin, shirt, shorts, braids, extra) in enumerate(KIDS):
+        # a portrait for the character picker on the title screen
+        save(kid_frame(hair, skin, shirt, shorts, braids, "idle", "down", extra), "..", "Resources", "UI", f"kid_{number}.png")
         for legs in LEGS:
-            save(kid_frame(hair, skin, shirt, shorts, braids, legs), "Characters", f"{name}_{legs}.png")
+            save(kid_frame(hair, skin, shirt, shorts, braids, legs, "down", extra), "Characters", f"{name}_{legs}.png")
             for view in ("up", "side"):
-                save(kid_frame(hair, skin, shirt, shorts, braids, legs, view), "Characters", f"{name}_{view}_{legs}.png")
+                save(kid_frame(hair, skin, shirt, shorts, braids, legs, view, extra), "Characters", f"{name}_{view}_{legs}.png")
 
 
 # ---------------------------------------------------------------- props

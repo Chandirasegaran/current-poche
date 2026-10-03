@@ -28,6 +28,11 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] SpriteRenderer carryIcon;
     [SerializeField] Sprite[] itemSprites; // indexed by Item
 
+    // The eight kids, in the order of the "looks" list: four boys, then four girls.
+    public static readonly string[] Names = { "Kavin", "Abdul", "Arul", "Muthu", "Yazhini", "Mercy", "Nila", "Kayal" };
+
+    public string CharacterName => Names[look.Value % Names.Length];
+
     // Things a player can be holding for a task.
     public enum Item : byte { None, Glasses, Leaf, Ice, Belt }
 
@@ -74,13 +79,11 @@ public class PlayerController : NetworkBehaviour
     // Called on every machine when this player object appears on the network.
     public override void OnNetworkSpawn()
     {
-        if (IsServer)
-            look.Value = (byte)(OwnerClientId % (ulong)looks.Length);
-
         // IsOwner is true only on the machine of the player who controls this object.
         if (IsOwner)
         {
             Local = this;
+            ChooseLookRpc((byte)GameSettings.Character); // tell everyone which kid I picked
             var spawn = GameObject.Find("SpawnPoint");
             var start = spawn != null ? spawn.transform.position : Vector3.zero;
             transform.position = start + new Vector3(OwnerClientId % 4 * 1.2f, 0f, 0f);
@@ -90,8 +93,24 @@ public class PlayerController : NetworkBehaviour
         All.Add(this);
     }
 
+    // Each player picks their kid on the title screen; the server passes it on.
+    [Rpc(SendTo.Server)]
+    void ChooseLookRpc(byte choice)
+    {
+        look.Value = (byte)(choice % looks.Length);
+        if (OwnerClientId != NetworkManager.ServerClientId && Quests.Instance != null)
+            Quests.Instance.AnnounceRpc($"{CharacterName} joined the game.", "pickup");
+    }
+
     public override void OnNetworkDespawn()
     {
+        // A player who leaves puts down whatever they were carrying, and the others are told.
+        if (IsServer && !NetworkManager.ShutdownInProgress && Quests.Instance != null && Quests.Instance.IsSpawned)
+        {
+            Quests.Instance.Dropped(Carrying);
+            if (OwnerClientId != NetworkManager.ServerClientId)
+                Quests.Instance.AnnounceRpc($"{CharacterName} left the game.", "fail");
+        }
         All.Remove(this);
         if (Local == this) Local = null;
     }

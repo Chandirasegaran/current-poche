@@ -36,6 +36,8 @@ public class GameUI : MonoBehaviour
     GameObject eraseButton, settings, credits, touchControls, quitButton;
     RectTransform stickBase, stickKnob;
     TouchScreenKeyboard softKeyboard;
+    readonly Image[] kidFrames = new Image[PlayerController.Names.Length];
+    PixelLabel kidName;
     PixelLabel musicValue, soundValue, fullscreenValue, difficultyValue;
     readonly PixelLabel[] keyLabels = new PixelLabel[Controls.Names.Length];
     int rebinding = -1; // which action is waiting for a key press, if any
@@ -112,6 +114,9 @@ public class GameUI : MonoBehaviour
         bool usable = sessions != null && sessions.Ready && !sessions.Busy;
         soloButton.interactable = sessions != null && !sessions.Busy; // solo works offline too
         eraseButton.SetActive(Quests.HasSave);
+        for (int i = 0; i < kidFrames.Length; i++)
+            kidFrames[i].color = i == GameSettings.Character ? Yellow : new Color(1f, 1f, 1f, 0.55f);
+        kidName.Text = PlayerController.Names[GameSettings.Character];
         joinedAt = Time.time;
         hostButton.interactable = usable;
         joinButton.interactable = usable && codeEntry.Length > 0;
@@ -499,6 +504,26 @@ public class GameUI : MonoBehaviour
         });
         MakeButton(title.transform, "SETTINGS", Vector2.zero, new Vector2(58, 50), new Vector2(104, 20), () => settings.SetActive(true));
         MakeButton(title.transform, "CREDITS", Vector2.zero, new Vector2(58, 26), new Vector2(104, 20), () => credits.SetActive(true));
+
+        // Choose who to play as: four boys on the top row, four girls below.
+        var side = new Vector2(1f, 0.5f);
+        var picker = Box(title.transform, "panel_9s", side, side, new Vector2(-6, 14), new Vector2(108, 94)).transform;
+        Label(picker, "PLAY AS", top, top, new Vector2(0, -5), Pale, 0, true);
+        for (int i = 0; i < kidFrames.Length; i++)
+        {
+            int choice = i;
+            var frame = Box(picker, "field_9s", topLeft, topLeft, new Vector2(7 + i % 4 * 24, -17 - i / 4 * 30), new Vector2(22, 28));
+            frame.raycastTarget = true;
+            frame.gameObject.AddComponent<Button>().onClick.AddListener(() =>
+            {
+                GameSettings.Character = choice;
+                Sfx.Play("click");
+            });
+            var portrait = Box(frame.transform, $"kid_{i}", centre, centre, new Vector2(0, 0), Vector2.zero);
+            ActualSize(portrait);
+            kidFrames[i] = frame;
+        }
+        kidName = Label(picker, "", bottom, bottom, new Vector2(0, 3), Yellow);
 
         // ---- in-game heads-up display
         hud = Group(canvas, "HUD");

@@ -276,7 +276,7 @@ public static class TownBuilder
         for (int i = 1; i < itemNames.Length; i++)
             items.GetArrayElementAtIndex(i).objectReferenceValue = Load($"Items/{itemNames[i]}");
         controller.FindProperty("torchPivot").objectReferenceValue = torchPivot.transform;
-        var kids = new[] { "kavin", "yazhini", "abdul", "mercy" };
+        var kids = new[] { "kavin", "abdul", "arul", "muthu", "yazhini", "mercy", "nila", "kayal" }; // same order as PlayerController.Names
         var looks = controller.FindProperty("looks");
         looks.arraySize = kids.Length;
         for (int i = 0; i < kids.Length; i++)

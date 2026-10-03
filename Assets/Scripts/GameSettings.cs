@@ -40,6 +40,13 @@ public static class GameSettings
         set { PlayerPrefs.SetInt("relaxed", value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    // Which of the eight kids this player has chosen to be (0 to 7).
+    public static int Character
+    {
+        get => PlayerPrefs.GetInt("character", 0);
+        set { PlayerPrefs.SetInt("character", value); PlayerPrefs.Save(); }
+    }
+
     public static void Apply()
     {
         Sfx.SetVolumes(Music, Sound);

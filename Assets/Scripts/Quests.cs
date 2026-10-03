@@ -309,6 +309,15 @@ public class Quests : NetworkBehaviour
 
     bool Has(Flag flag) => (flags.Value & (int)flag) != 0;
     void Raise(Flag flag) => flags.Value |= (int)flag;
+    void Lower(Flag flag) => flags.Value &= ~(int)flag;
+
+    // Server: a player left while holding something, so it goes back where it was found.
+    public void Dropped(PlayerController.Item item)
+    {
+        if (item == PlayerController.Item.Glasses && !Has(Flag.GlassesReturned)) Lower(Flag.GlassesFound);
+        if (item == PlayerController.Item.Belt && !Has(Flag.BeltFitted)) Lower(Flag.BeltTaken);
+        if (item == PlayerController.Item.Ice) iceMeltsAt.Value = 0;
+    }
 
     public bool PowerRestored => Has(Flag.PowerRestored);
     public bool GoatPenned => Has(Flag.GoatPenned);
