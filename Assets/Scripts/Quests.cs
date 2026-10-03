@@ -25,17 +25,37 @@ public class Quests : NetworkBehaviour
     {
         GlassesFound = 1, GlassesReturned = 2, GoatPenned = 4, GoatRewarded = 8,
         IceDelivered = 16, BallsReturned = 32, PowerRestored = 64,
+        // Chapter 2: the fields
+        BridgeDown = 128, BeltTaken = 256, BeltFitted = 512, PumpStarted = 1024,
     }
+
+    const float ValveSeconds = 30f;
+
+    static readonly string[] PumpEnding =
+    {
+        "|The pump coughs, catches, and roars. Water gushes into the channels.",
+        "Farmer Periyasamy|Ahh! Listen to her sing! Thambi, you have saved the whole season's--",
+        "|Something on the roof of the pump-house is glowing. It is the size of a kitten, and shaped like a lightning bolt.",
+        "|It drinks the spark straight out of the motor, looks at you with two round, frightened eyes, and is gone. North. Towards the old cinema.",
+        "Farmer Periyasamy|...That was not a minmini.",
+        "|CHAPTER 2 COMPLETE.   (Chapter 3: Last Show at Raja Talkies is coming.)",
+    };
 
     public static Quests Instance { get; private set; }
 
     [SerializeField] GameObject[] powerOn;  // shown once the power is back (lit windows)
     [SerializeField] GameObject[] powerOff; // removed once the power is back (the east barricade)
+    [SerializeField] GameObject bridgeBlocker, bridgeRaised, bridgeLowered;
+    [SerializeField] SpriteRenderer[] valves;
+    [SerializeField] Sprite valveShut, valveOpen;
+    [SerializeField] StreetLight pump;
+    [SerializeField] GameObject minnal;
 
     readonly NetworkVariable<int> flags = new();
     readonly NetworkVariable<int> ballMask = new();
     readonly NetworkVariable<int> fuses = new();
     readonly NetworkVariable<double> iceMeltsAt = new();
+    readonly NetworkVariable<Vector3> valveShutsAt = new(); // one time per valve (x, y, z)
 
     Interactable[] actors;
 
@@ -84,6 +104,7 @@ public class Quests : NetworkBehaviour
         {
             flags.Value = ballMask.Value = fuses.Value = 0;
             iceMeltsAt.Value = 0;
+            valveShutsAt.Value = Vector3.zero;
         }
         flags.OnValueChanged += OnFlagsChanged;
     }
@@ -92,8 +113,40 @@ public class Quests : NetworkBehaviour
 
     void OnFlagsChanged(int before, int now)
     {
-        bool wasOn = (before & (int)Flag.PowerRestored) != 0;
-        if (!wasOn && PowerRestored) Sfx.Play("power");
+        bool Became(Flag flag) => (before & (int)flag) == 0 && (now & (int)flag) != 0;
+
+        if (Became(Flag.PowerRestored)) Sfx.Play("power");
+        if (Became(Flag.BridgeDown)) Sfx.Play("lamp");
+        if (Became(Flag.PumpStarted))
+        {
+            Sfx.Play("power");
+            minnal.SetActive(true);
+            if (GameUI.Instance != null) GameUI.Instance.Say(PumpEnding);
+        }
+    }
+
+    float Now => (float)NetworkManager.ServerTime.Time;
+
+    bool ValveOpen(int index) => IsSpawned && valveShutsAt.Value[index] > Now;
+
+    int ValvesOpen => (ValveOpen(0) ? 1 : 0) + (ValveOpen(1) ? 1 : 0) + (ValveOpen(2) ? 1 : 0);
+
+    // A line for the top of the screen while something is on a timer.
+    public string Banner
+    {
+        get
+        {
+            if (!IsSpawned) return "";
+            if (IceSecondsLeft > 0f) return $"ICE MELTS IN {Mathf.CeilToInt(IceSecondsLeft)}";
+            if (!Has(Flag.BridgeDown) && ValvesOpen > 0)
+            {
+                float soonest = float.MaxValue;
+                for (int i = 0; i < 3; i++)
+                    if (ValveOpen(i)) soonest = Mathf.Min(soonest, valveShutsAt.Value[i] - Now);
+                return $"VALVES {ValvesOpen}/3   {Mathf.CeilToInt(soonest)}";
+            }
+            return "";
+        }
     }
 
     void Update()
@@ -106,6 +159,24 @@ public class Quests : NetworkBehaviour
         bool power = IsSpawned && PowerRestored;
         foreach (var go in powerOn) go.SetActive(power);
         foreach (var go in powerOff) go.SetActive(!power);
+
+        bool bridge = IsSpawned && Has(Flag.BridgeDown);
+        bridgeBlocker.SetActive(!bridge);
+        bridgeRaised.SetActive(!bridge);
+        bridgeLowered.SetActive(bridge);
+        for (int i = 0; i < valves.Length; i++)
+            valves[i].sprite = bridge || ValveOpen(i) ? valveOpen : valveShut;
+
+        if (IsSpawned && IsServer)
+        {
+            pump.Locked = !Has(Flag.BeltFitted);
+            if (!Has(Flag.BridgeDown) && ValvesOpen == 3)
+            {
+                Raise(Flag.BridgeDown);
+                AnnounceRpc("All three valves open! The sluice bridge is down.", "quest");
+            }
+            if (!Has(Flag.PumpStarted) && pump.IsLit) Raise(Flag.PumpStarted);
+        }
 
         if (IsSpawned && IsServer && iceMeltsAt.Value > 0 && NetworkManager.ServerTime.Time > iceMeltsAt.Value)
         {
@@ -128,7 +199,12 @@ public class Quests : NetworkBehaviour
     public string LogText()
     {
         if (!IsSpawned) return "";
-        if (PowerRestored) return "Chapter 1 complete!\nThe road east is open.";
+        if (Has(Flag.PumpStarted)) return "Chapter 2 complete!\nMore is coming.";
+        if (PowerRestored)
+            return "The Pump-set\n"
+                   + (Has(Flag.BridgeDown) ? "+ " : "- ") + "Open the sluice bridge\n"
+                   + (Has(Flag.BeltFitted) ? "+ " : "- ") + "Find the fan belt\n"
+                   + $"- Start the pump {pump.Charge}/{pump.Needed}";
         string Line(bool done, string text) => (done ? "+ " : "- ") + text + "\n";
         return Line(LampsLit == StreetLight.All.Count, $"Streetlights {LampsLit}/{StreetLight.All.Count}")
                + Line(Has(Flag.GlassesReturned), "Paati's glasses")
@@ -157,7 +233,8 @@ public class Quests : NetworkBehaviour
         switch (action)
         {
             case "lineman":
-                if (PowerRestored) return new[] { "Lineman Murugesan|Did you see where those minminis went? East. Straight over the fields. Tomorrow, thambi. Tomorrow we follow them." };
+                if (Has(Flag.PumpStarted)) return new[] { "Lineman Murugesan|A lightning bolt. With EYES. Thambi, I have worked for the Electricity Board for nineteen years and nobody told me about this." };
+                if (PowerRestored) return new[] { "Lineman Murugesan|Did you see where those minminis went? East, over the fields. The road is open now. Go and see old Periyasamy at the pump-set, and mind the bunds: one wrong step and you are in the paddy." };
                 if (lamps == total && Fuses >= FusesNeeded) return new[] { "Lineman Murugesan|Every lamp lit AND four fuses? Go, go! Push them into the transformer by the EB office, at the east end of the bazaar." };
                 if (lamps == total) return new[] { $"Lineman Murugesan|The ward is glowing! Now the transformer. It needs four fuses and I have... zero. You have {Fuses}. People here hoard fuses like gold. Help them and they will cough one up." };
                 return new[]
@@ -250,7 +327,41 @@ public class Quests : NetworkBehaviour
                     "Radio|*static*",
                     "|Every light in Minnalpatti flickers. All at once, the minminis lift into the air and stream away east, over the paddy fields.",
                     "Lineman Murugesan|...That is not normal. Something out there is still pulling the current. Tomorrow, thambi, we follow them.",
-                    "|CHAPTER 1 COMPLETE.   The road east is open.   (Chapter 2: The Pump-set is coming.)",
+                    "|CHAPTER 1 COMPLETE.   The road east is open. Follow the minminis into the fields.",
+                };
+        }
+
+        if (action.StartsWith("valve"))
+        {
+            if (!Has(Flag.BridgeDown) && GameUI.Instance != null)
+                GameUI.Instance.Toast($"You haul the wheel round. It will creep shut in {ValveSeconds:0} seconds.\nGet all three open at once!", 4f);
+            return Array.Empty<string>();
+        }
+
+        switch (action)
+        {
+            case "sluice":
+                return Has(Flag.BridgeDown)
+                    ? new[] { "|The sluice bridge is down. The canal rushes underneath." }
+                    : new[] { "|The sluice bridge is raised. A faded sign: OPEN ALL THREE VALVES TO LOWER. There are valve wheels out on the bunds, north, south and east of here." };
+
+            case "scarecrow":
+                if (Has(Flag.BeltTaken)) return new[] { "|The scarecrow looks less fashionable without his sash." };
+                if (item != PlayerController.Item.None) return new[] { "|Your hands are full." };
+                return new[] { "|The scarecrow is wearing a rubber fan belt as a sash. You unhook it. He does not object." };
+
+            case "farmer":
+                if (Has(Flag.PumpStarted)) return new[] { "Farmer Periyasamy|Forty years I have farmed here. Never once did the lightning come back for seconds." };
+                if (Has(Flag.BeltFitted)) return new[] { $"Farmer Periyasamy|The belt is on. Now she only needs a spark. {pump.Needed} of those glow-bugs should do it. Walk them up to the pump-house." };
+                if (item == PlayerController.Item.Belt) return new[]
+                {
+                    "Farmer Periyasamy|My fan belt! On the SCARECROW? Those crows have a sense of humour.",
+                    $"Farmer Periyasamy|There. Fitted. Now she only needs a spark. {pump.Needed} of those glow-bugs should do it. Walk them up to the pump-house.",
+                };
+                return new[]
+                {
+                    "Farmer Periyasamy|No current for the pump-set, and the paddy drinks every night. Three more days of this and the crop is finished.",
+                    "Farmer Periyasamy|And even if the current came: the crows stole her fan belt. I saw something black on the scarecrow in the north field. My knees are too old for those bunds in the dark.",
                 };
         }
 
@@ -313,8 +424,27 @@ public class Quests : NetworkBehaviour
                 Raise(Flag.PowerRestored);
                 break;
 
+            case "scarecrow" when item == PlayerController.Item.None && !Has(Flag.BeltTaken):
+                Raise(Flag.BeltTaken);
+                player.Carrying = PlayerController.Item.Belt;
+                AnnounceRpc("", "pickup");
+                break;
+
+            case "farmer" when item == PlayerController.Item.Belt:
+                player.Carrying = PlayerController.Item.None;
+                Raise(Flag.BeltFitted);
+                AnnounceRpc("The belt is fitted. Bring minminis to the pump!", "quest");
+                break;
+
             default:
-                if (action.StartsWith("ball") && action.Length == 5)
+                if (action.StartsWith("valve") && action.Length == 6)
+                {
+                    var times = valveShutsAt.Value;
+                    times[action[5] - '0'] = Now + ValveSeconds;
+                    valveShutsAt.Value = times;
+                    AnnounceRpc("", "click");
+                }
+                else if (action.StartsWith("ball") && action.Length == 5)
                 {
                     ballMask.Value |= 1 << (action[4] - '0');
                     AnnounceRpc("", "pickup");

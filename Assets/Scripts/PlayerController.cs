@@ -27,7 +27,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] Sprite[] itemSprites; // indexed by Item
 
     // Things a player can be holding for a task.
-    public enum Item : byte { None, Glasses, Leaf, Ice }
+    public enum Item : byte { None, Glasses, Leaf, Ice, Belt }
 
     // The player object that belongs to this machine (the camera follows it).
     public static PlayerController Local { get; private set; }

@@ -605,9 +605,130 @@ def make_quest_art():
     save(small(["mmmm", "cccc", "cyyc", "cccc", "cyyc", "cccc", "mmmm"], {"m": "#aab0c0", "c": "#f3ead7", "y": "#e9b63a"}), "Items", "fuse.png")
 
 
+# ---------------------------------------------------------------- chapter 2: the fields
+
+def scarecrow():
+    img = Image.new("RGBA", (26, 40), CLEAR)
+    d = ImageDraw.Draw(img)
+    wood = rgb("#7b5b3d")
+    d.rectangle([12, 8, 13, 39], fill=wood)
+    d.rectangle([2, 15, 23, 16], fill=wood)
+    d.rectangle([7, 14, 18, 27], fill=rgb("#b4433a"))  # old shirt
+    d.rectangle([7, 24, 18, 27], fill=rgb("#8f3530"))
+    for x in (3, 5, 20, 22):  # straw hands
+        d.line([x, 17, x, 19], fill=rgb("#e9c53a"))
+    d.ellipse([8, 2, 17, 12], fill=rgb("#c9763a"))  # clay pot head
+    img.putpixel((11, 6), rgb("#17131f"))
+    img.putpixel((14, 6), rgb("#17131f"))
+    d.line([11, 9, 14, 9], fill=rgb("#17131f"))
+    d.line([8, 15, 17, 26], fill=rgb("#2a2630"), width=2)  # the fan belt, worn as a sash
+    return outlined(img)
+
+
+def valve(open_):
+    img = Image.new("RGBA", (16, 22), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([7, 9, 8, 21], fill=rgb("#6f7683"))
+    d.rectangle([4, 19, 11, 21], fill=rgb("#5a606c"))
+    wheel = rgb("#57c06a") if open_ else rgb("#c0392b")
+    d.ellipse([1, 0, 14, 12], outline=wheel, width=2)
+    d.line([2, 6, 13, 6], fill=wheel)
+    d.line([7, 1, 7, 11], fill=wheel)
+    return outlined(img)
+
+
+def pump_house(running):
+    img = Image.new("RGBA", (64, 56), CLEAR)
+    d = ImageDraw.Draw(img)
+    wall = rgb("#b9c4a0")
+    d.rectangle([2, 14, 61, 51], fill=wall, outline=OUTLINE)
+    d.rectangle([3, 15, 60, 19], fill=shade(wall, 0.72))
+    d.rectangle([3, 45, 60, 50], fill=shade(wall, 0.6))
+    roof = rgb("#7d8795")
+    d.rectangle([0, 4, 63, 14], fill=roof, outline=OUTLINE)  # tin sheet roof
+    for x in range(3, 63, 4):
+        d.line([x, 5, x, 13], fill=shade(roof, 0.75))
+    d.rectangle([8, 24, 25, 51], fill=rgb("#2a1f2b"), outline=OUTLINE)  # open doorway
+    motor = rgb("#3f8a5a")
+    d.rectangle([11, 36, 22, 48], fill=motor, outline=OUTLINE)
+    d.ellipse([13, 38, 20, 45], fill=shade(motor, 1.3) if running else shade(motor, 0.7))
+    d.rectangle([34, 26, 47, 38], fill=rgb("#fff2b3") if running else rgb("#141726"), outline=OUTLINE)
+    d.line([40, 27, 40, 37], fill=rgb("#7f8491"))
+    pipe = rgb("#5a606c")
+    d.rectangle([50, 38, 63, 43], fill=pipe, outline=OUTLINE)
+    if running:
+        for x, y in ((62, 45), (61, 48), (63, 50), (60, 52)):
+            img.putpixel((x, y), rgb("#8fd0f0"))
+    stone = rgb("#8f867a")
+    d.rectangle([0, 52, 63, 55], fill=stone, outline=OUTLINE)
+    return img
+
+
+def plank_bridge():
+    img = Image.new("RGBA", (72, 36), CLEAR)
+    d = ImageDraw.Draw(img)
+    wood = rgb("#9a7550")
+    d.rectangle([0, 2, 71, 33], fill=wood, outline=OUTLINE)
+    for x in range(6, 72, 6):
+        d.line([x, 3, x, 32], fill=shade(wood, 0.7))
+    d.rectangle([0, 2, 71, 4], fill=shade(wood, 1.25))
+    d.rectangle([0, 31, 71, 33], fill=shade(wood, 0.65))
+    return img
+
+
+def sluice_gate():
+    img = Image.new("RGBA", (16, 44), CLEAR)
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, 15, 43], fill=rgb("#6f7683"), outline=OUTLINE)
+    for y in range(4, 44, 6):
+        d.line([1, y, 14, y], fill=rgb("#4f535f"))
+    d.rectangle([3, 16, 12, 26], fill=rgb("#e9c53a"), outline=OUTLINE)
+    return img
+
+
+def minnal():
+    art = [
+        "....yyyy....",
+        "...yYYYYy...",
+        "..yYYYYYYy..",
+        "..yYeYYeYy..",
+        "..yYYYYYYy..",
+        "...yYYYYy...",
+        "....yYYy....",
+        "...yYYy.....",
+        "..yYYYYYy...",
+        "....yYYy....",
+        "...yYYy.....",
+        "..yYy.......",
+        ".yy.........",
+    ]
+    img = Image.new("RGBA", (12, len(art)), CLEAR)
+    pal = {"y": rgb("#ffe27a"), "Y": rgb("#fffbe0"), "e": rgb("#3a2a6b")}
+    for y, row in enumerate(art):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                img.putpixel((x, y), pal[ch])
+    return img
+
+
+def make_fields_art():
+    save(scarecrow(), "Props", "scarecrow.png")
+    save(valve(False), "Props", "valve_shut.png")
+    save(valve(True), "Props", "valve_open.png")
+    save(pump_house(False), "Props", "pump_off.png")
+    save(pump_house(True), "Props", "pump_on.png")
+    save(plank_bridge(), "Decals", "plank_bridge.png")
+    save(sluice_gate(), "Props", "sluice_gate.png")
+    save(minnal(), "Characters", "minnal.png")
+    save(adult("#2a2233", "#8f5c3a", "#f3ead7", "#3f6f9a", hem="#2c4f70", hat="#f3ead7", moustache=True),
+         "Characters", "farmer.png")
+    save(small(["bbbbbb", "b....b", "b....b", "bbbbbb"], {"b": "#2a2630"}), "Items", "belt.png")
+
+
 def main():
     make_tiles()
     make_props()
     make_characters()
     make_ui()
     make_quest_art()
+    make_fields_art()

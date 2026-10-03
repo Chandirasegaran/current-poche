@@ -18,6 +18,9 @@ using UnityEngine.Tilemaps;
 //        y=22  Bazaar Street      wedding hall, tea stall, shops, EB office
 //        y=-2  Kamarajar Street   houses (home is here), cricket ground behind
 //        y=-26 Tank Road          houses, banyan tree, temple tank and shrine
+//
+// East of town (x 66 to 148) are the paddy fields of Chapter 2. The flooded
+// paddies can't be walked on, so the raised dirt bunds between them are a maze.
 public static class TownBuilder
 {
     const string ScenePath = "Assets/Scenes/Town.unity";
@@ -31,6 +34,25 @@ public static class TownBuilder
     static readonly int[] Roads = { -58, -2, 54 }; // left column of each 4-tile-wide road
     static readonly RectInt Tank = new(14, -20, 27, 10);
     static readonly RectInt Pitch = new(26, 9, 4, 10);
+
+    const int FieldsStart = 66, FieldsEnd = 148;
+
+    // Inclusive corners, which is easier to read for paths than x/y/width/height.
+    static RectInt Area(int x0, int y0, int x1, int y1) => new(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+
+    static readonly RectInt Canal = Area(101, -60, 104, 60);
+    static readonly RectInt Island = Area(128, -7, 146, 8); // dry ground around the pump-house
+    static readonly RectInt[] Bunds =
+    {
+        Area(66, -1, 100, 0),    // the cart track from town to the canal
+        Area(84, -23, 85, 22),   // long bund running north-south
+        Area(84, 10, 99, 11),    // east to the canal-side valve
+        Area(70, -12, 96, -11), Area(70, -12, 71, -1), // a loop to get lost on
+        Area(83, 20, 86, 22), Area(83, -23, 86, -21), Area(97, 9, 99, 12), // valve platforms
+        Area(105, -1, 128, 0),   // across the canal to the pump-house
+        Area(116, 0, 117, 18), Area(116, 17, 136, 18), Area(133, 16, 136, 19), // to the scarecrow
+        Area(110, -14, 111, -1), // dead end
+    };
 
     static readonly Color Warm = new(1f, 0.8f, 0.5f);
 
@@ -70,9 +92,12 @@ public static class TownBuilder
         Set(network.GetComponent<WorldSpawner>(), "bandicootPrefab", bandicootPrefab.GetComponent<NetworkObject>());
         Set(network.GetComponent<WorldSpawner>(), "bandicootSpots", BuildBandicootSpots());
 
+        Set(network.GetComponent<WorldSpawner>(), "minminiCount", 60);
+
         var quests = new GameObject("Quests");
         quests.AddComponent<NetworkObject>();
         var questState = new SerializedObject(quests.AddComponent<Quests>());
+        BuildFields(questState);
         Fill(questState.FindProperty("powerOn"), powerLights);
         Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
         questState.ApplyModifiedPropertiesWithoutUndo();
@@ -159,7 +184,7 @@ public static class TownBuilder
         controller.FindProperty("body").objectReferenceValue = body;
         controller.FindProperty("carryIcon").objectReferenceValue = carry;
         var items = controller.FindProperty("itemSprites");
-        string[] itemNames = { null, "glasses", "leaf", "ice" };
+        string[] itemNames = { null, "glasses", "leaf", "ice", "belt" };
         items.arraySize = itemNames.Length;
         for (int i = 1; i < itemNames.Length; i++)
             items.GetArrayElementAtIndex(i).objectReferenceValue = Load($"Items/{itemNames[i]}");
@@ -285,8 +310,21 @@ public static class TownBuilder
         return false;
     }
 
+    static string FieldAt(int x, int y)
+    {
+        var cell = new Vector2Int(x, y);
+        if (Canal.Contains(cell)) return y == -1 || y == 0 ? "steps" : "water"; // the bridge crossing
+        foreach (var bund in Bunds)
+            if (bund.Contains(cell)) return "dirt";
+        return Island.Contains(cell) ? "grass" : "paddy";
+    }
+
+    static bool Blocks(string ground) => ground == "paddy" || ground == "water";
+
     static string GroundAt(int x, int y)
     {
+        if (x >= FieldsStart) return FieldAt(x, y);
+
         bool inTown = x >= Roads[0] && x <= Roads[2] + 3 && y >= Streets[2] && y <= Streets[0] + 3;
 
         // The three ways out of town: east along Kamarajar Street, north past
@@ -320,12 +358,25 @@ public static class TownBuilder
         var tilemap = Child(grid.gameObject, "Ground", Vector3.zero).AddComponent<Tilemap>();
         tilemap.gameObject.AddComponent<TilemapRenderer>().sortingOrder = GroundOrder;
 
-        for (int x = -HalfWidth - 16; x < HalfWidth + 16; x++)
+        // Flooded paddy and open water go on a second layer that has a collider,
+        // so nobody can wade through them.
+        var wet = Child(grid.gameObject, "Water and Paddy", Vector3.zero).AddComponent<Tilemap>();
+        wet.gameObject.AddComponent<TilemapRenderer>().sortingOrder = GroundOrder;
+        wet.gameObject.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Static;
+        wet.gameObject.AddComponent<TilemapCollider2D>().compositeOperation = Collider2D.CompositeOperation.Merge;
+        wet.gameObject.AddComponent<CompositeCollider2D>();
+
+        for (int x = -HalfWidth - 16; x < FieldsEnd + 16; x++)
         for (int y = -HalfHeight - 10; y < HalfHeight + 10; y++)
         {
             int variant = Mathf.Abs(x * 7 + y * 13 + x * y) % 3;
-            tilemap.SetTile(new Vector3Int(x, y, 0), TileFor($"{GroundAt(x, y)}_{variant}"));
+            string ground = GroundAt(x, y);
+            (Blocks(ground) ? wet : tilemap).SetTile(new Vector3Int(x, y, 0), TileFor($"{ground}_{variant}"));
         }
+        wet.GetComponent<TilemapCollider2D>().ProcessTilemapChanges();
+        var merged = wet.GetComponent<CompositeCollider2D>();
+        merged.geometryType = CompositeCollider2D.GeometryType.Polygons; // solid all the way through
+        merged.GenerateGeometry();
 
         // You can't walk into the temple tank.
         var water = new GameObject("Tank Water").AddComponent<BoxCollider2D>();
@@ -488,6 +539,78 @@ public static class TownBuilder
         Talk(goat, "Pet", "Lakshmi|Meh-eh-eh.", "|(She eyes your pockets for banana leaves.)");
     }
 
+    // Chapter 2: the sluice bridge and its valves, the scarecrow, the farmer
+    // and the pump-house. Hands the pieces Quests needs to control over to it.
+    static void BuildFields(SerializedObject quests)
+    {
+        // The crossing: blocked by a raised gate until all three valves are open.
+        var blocker = Child(props, "Sluice Blocker", new Vector3(103f, 0f, 0f));
+        blocker.AddComponent<BoxCollider2D>().size = new Vector2(4f, 2.4f);
+        var gate = Prop("Sluice Gate", "Props/sluice_gate", new Vector3(100.6f, -1.2f, 0f));
+        Act(gate, "Read", "sluice");
+        var plank = Prop("Plank Bridge", "Decals/plank_bridge", new Vector3(103f, 0f, 0f));
+        plank.GetComponent<SpriteRenderer>().sortingOrder = DecalOrder;
+
+        Vector3[] valveSpots = { new(84.5f, 21.2f, 0f), new(84.5f, -22.6f, 0f), new(98.6f, 11.3f, 0f) };
+        var valves = quests.FindProperty("valves");
+        valves.arraySize = valveSpots.Length;
+        for (int i = 0; i < valveSpots.Length; i++)
+        {
+            var valve = Prop("Valve", "Props/valve_shut", valveSpots[i]);
+            Solid(valve, 0.5f, 0.3f);
+            Act(valve, "Turn the wheel", $"valve{i}");
+            Glow(valve, new Vector3(0f, 1f, 0f), new Color(1f, 0.5f, 0.4f, 0.6f), 0.3f);
+            valves.GetArrayElementAtIndex(i).objectReferenceValue = valve.GetComponent<SpriteRenderer>();
+        }
+
+        var scarecrow = Prop("Scarecrow", "Props/scarecrow", new Vector3(134.5f, 17.6f, 0f));
+        Solid(scarecrow, 0.4f, 0.3f);
+        Act(scarecrow, "Search", "scarecrow");
+
+        var farmer = Prop("Farmer Periyasamy", "Characters/farmer", new Vector3(131.5f, 2.4f, 0f));
+        Solid(farmer, 0.6f, 0.4f);
+        Act(farmer, "Talk", "farmer");
+        var lantern = Child(farmer, "Lantern", new Vector3(0.5f, 0.6f, 0f));
+        Light(lantern, new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.5f);
+        lantern.AddComponent<FlickerLight>();
+        Glow(farmer, new Vector3(0.5f, 0.6f, 0f), new Color(1f, 0.75f, 0.4f), 0.3f);
+
+        // The pump is powered by minminis exactly like a streetlight, but hungrier.
+        var pumpHouse = Building("Pump-house", "Props/pump_off", 137f, 3f);
+        var pool = Light(Child(pumpHouse, "Pool", new Vector3(-0.8f, -0.6f, 0f)), Warm, 1.4f, 1.2f, 6.5f);
+        var glow = Glow(pumpHouse, new Vector3(0.55f, 1.5f, 0f), new Color(1f, 0.93f, 0.7f), 0.7f);
+        pumpHouse.AddComponent<NetworkObject>();
+        var pump = pumpHouse.AddComponent<StreetLight>();
+        Set(pump, "needed", 5);
+        Set(pump, "isStreetlight", false);
+        Set(pump, "pole", pumpHouse.GetComponent<SpriteRenderer>());
+        Set(pump, "litSprite", Load("Props/pump_on"));
+        Set(pump, "deadSprite", Load("Props/pump_off"));
+        Set(pump, "pool", pool);
+        Set(pump, "glow", glow);
+
+        var minnal = Prop("Minnal", "Characters/minnal", new Vector3(137f, 6.4f, 0f));
+        var minnalSprite = minnal.GetComponent<SpriteRenderer>();
+        minnalSprite.sharedMaterial = GlowMaterial();
+        minnalSprite.sortingOrder = GlowOrder;
+        Set(minnal.AddComponent<MinnalCameo>(), "glow", Light(minnal, new Color(1f, 0.95f, 0.6f), 3f, 0.3f, 5f));
+        minnal.SetActive(false);
+
+        foreach (var spot in new[] { new Vector3(130f, -4.5f, 0f), new Vector3(142f, -3f, 0f), new Vector3(144f, 6f, 0f), new Vector3(129.5f, 7f, 0f) })
+        {
+            var tree = Prop("Coconut Tree", "Props/coconut_1", spot);
+            tree.AddComponent<CircleCollider2D>().radius = 0.25f;
+        }
+
+        quests.FindProperty("bridgeBlocker").objectReferenceValue = blocker;
+        quests.FindProperty("bridgeRaised").objectReferenceValue = gate;
+        quests.FindProperty("bridgeLowered").objectReferenceValue = plank;
+        quests.FindProperty("valveShut").objectReferenceValue = Load("Props/valve_shut");
+        quests.FindProperty("valveOpen").objectReferenceValue = Load("Props/valve_open");
+        quests.FindProperty("pump").objectReferenceValue = pump;
+        quests.FindProperty("minnal").objectReferenceValue = minnal;
+    }
+
     // A small thing lying on the ground, with a faint glint so a torch can find it.
     static void Pickup(string name, string sprite, Vector3 position, string action)
     {
@@ -507,6 +630,8 @@ public static class TownBuilder
             if (Vector2.Distance(new Vector2(x, y), new Vector2(-9f, 0.5f)) < 16f) continue; // a calm start
             Child(spots.gameObject, "Lair", new Vector3(x, y, 0f));
         }
+        foreach (var lair in new[] { new Vector3(90f, -11.5f, 0f), new Vector3(84.5f, 16f, 0f), new Vector3(116.5f, 9f, 0f), new Vector3(110.5f, -10f, 0f) })
+            Child(spots.gameObject, "Lair", lair);
         return spots;
     }
 
@@ -551,6 +676,11 @@ public static class TownBuilder
             if (Vector2.Distance(new Vector2(x, y), new Vector2(-9f, 0.5f)) < 7f) continue; // not right at the start
             Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
         }
+        while (spots.childCount < 125) // and some out in the fields
+        {
+            float x = random.Next(FieldsStart, FieldsEnd - 2) + 0.5f, y = random.Next(-24, 23) + 0.5f;
+            if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
+        }
         return spots;
     }
 
@@ -559,8 +689,8 @@ public static class TownBuilder
         var edge = new GameObject("World Bounds").AddComponent<EdgeCollider2D>();
         edge.points = new[]
         {
-            new Vector2(-HalfWidth, -HalfHeight), new Vector2(HalfWidth, -HalfHeight),
-            new Vector2(HalfWidth, HalfHeight), new Vector2(-HalfWidth, HalfHeight),
+            new Vector2(-HalfWidth, -HalfHeight), new Vector2(FieldsEnd, -HalfHeight),
+            new Vector2(FieldsEnd, HalfHeight), new Vector2(-HalfWidth, HalfHeight),
             new Vector2(-HalfWidth, -HalfHeight),
         };
     }
@@ -794,6 +924,7 @@ public static class TownBuilder
             AssetDatabase.CreateAsset(tile, path);
         }
         tile.sprite = Load($"Tiles/{name}");
+        tile.colliderType = Blocks(name.Split('_')[0]) ? Tile.ColliderType.Grid : Tile.ColliderType.None;
         EditorUtility.SetDirty(tile);
         return tiles[name] = tile;
     }
@@ -811,6 +942,7 @@ public static class TownBuilder
         var serialized = new SerializedObject(component);
         var property = serialized.FindProperty(field);
         if (value is bool flag) property.boolValue = flag;
+        else if (value is int number) property.intValue = number;
         else property.objectReferenceValue = (Object)value;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }

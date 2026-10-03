@@ -148,7 +148,7 @@ public class Minmini : NetworkBehaviour
 
     StreetLight FindLamp()
     {
-        foreach (var candidate in StreetLight.All)
+        foreach (var candidate in StreetLight.Feedable)
         {
             if (candidate.IsLit) continue;
             if (Vector2.Distance(leader.transform.position, candidate.transform.position) > LampRange) continue;

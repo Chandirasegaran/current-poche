@@ -145,9 +145,9 @@ public class GameUI : MonoBehaviour
         if (quests != null)
         {
             questLabel.Text = quests.LogText();
-            float ice = quests.IceSecondsLeft;
-            iceLabel.gameObject.SetActive(ice > 0f);
-            if (ice > 0f) iceLabel.Text = $"ICE MELTS IN {Mathf.CeilToInt(ice)}";
+            string banner = quests.Banner;
+            iceLabel.gameObject.SetActive(banner.Length > 0);
+            if (banner.Length > 0) iceLabel.Text = banner;
         }
 
         if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf)
@@ -171,7 +171,8 @@ public class GameUI : MonoBehaviour
     {
         if (target.verb == "Pet") Sfx.Play("bark", 0.8f);
         bool scripted = !string.IsNullOrEmpty(target.action) && Quests.Instance != null;
-        Say(scripted ? Quests.Instance.Talk(target.action, player) : target.lines);
+        var script = scripted ? Quests.Instance.Talk(target.action, player) : target.lines;
+        if (script.Length > 0) Say(script);
     }
 
     // ------------------------------------------------------------ dialogue
@@ -292,7 +293,7 @@ public class GameUI : MonoBehaviour
         hintLabel = Label(hud.transform, "", bottom, bottom, new Vector2(0, 70), Yellow);
 
         toast = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 86), new Vector2(262, 48)).gameObject;
-        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale);
+        toastLabel = Label(toast.transform, "", centre, centre, new Vector2(0, -1), Pale, 246);
         toast.SetActive(false);
 
         dialogue = Box(hud.transform, "panel_9s", bottom, bottom, new Vector2(0, 6), new Vector2(340, 60)).gameObject;
