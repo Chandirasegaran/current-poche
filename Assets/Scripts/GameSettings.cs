@@ -21,7 +21,10 @@ public static class GameSettings
         set
         {
             PlayerPrefs.SetInt("fullscreen", value ? 1 : 0);
-            if (value)
+            if (Application.isMobilePlatform) return; // phones are always fullscreen
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+                Screen.fullScreen = value; // the browser decides the size
+            else if (value)
                 Screen.SetResolution(Display.main.systemWidth, Display.main.systemHeight, FullScreenMode.FullScreenWindow);
             else
                 Screen.SetResolution(1280, 720, FullScreenMode.Windowed);

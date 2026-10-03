@@ -517,6 +517,14 @@ def make_ui():
     save(bulb(True), *ui, "bulb_on.png")
     save(bulb(False), *ui, "bulb_off.png")
 
+    base = Image.new("RGBA", (56, 56), CLEAR)
+    d = ImageDraw.Draw(base)
+    d.ellipse([0, 0, 55, 55], fill=rgb("#11162e", 150), outline=rgb("#4a5aa8"), width=2)
+    save(base, *ui, "stick_base.png")
+    knob = Image.new("RGBA", (26, 26), CLEAR)
+    ImageDraw.Draw(knob).ellipse([0, 0, 25, 25], fill=rgb("#f2b33d"), outline=rgb("#17131f"), width=2)
+    save(knob, *ui, "stick_knob.png")
+
 
 # ---------------------------------------------------------------- quest art
 

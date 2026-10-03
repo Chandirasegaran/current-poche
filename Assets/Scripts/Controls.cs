@@ -42,6 +42,30 @@ public static class Controls
 
     public static string Label(GameAction action) => Get(action).ToString();
 
+    // Whether a fixed key (one that can't be remapped) went down this frame.
+    public static bool Tapped(Key key)
+    {
+        var keyboard = Keyboard.current;
+        return keyboard != null && keyboard[key].wasPressedThisFrame;
+    }
+
+    static bool Down(Key key)
+    {
+        var keyboard = Keyboard.current;
+        return keyboard != null && keyboard[key].isPressed;
+    }
+
+    // Movement as a direction, from the keys (remappable ones or arrows) or the touch stick.
+    public static Vector2 Movement()
+    {
+        var move = TouchInput.Active ? TouchInput.Move : Vector2.zero;
+        if (Held(GameAction.Up) || Down(Key.UpArrow)) move.y += 1;
+        if (Held(GameAction.Down) || Down(Key.DownArrow)) move.y -= 1;
+        if (Held(GameAction.Left) || Down(Key.LeftArrow)) move.x -= 1;
+        if (Held(GameAction.Right) || Down(Key.RightArrow)) move.x += 1;
+        return Vector2.ClampMagnitude(move, 1f);
+    }
+
     public static bool Held(GameAction action)
     {
         var keyboard = Keyboard.current;

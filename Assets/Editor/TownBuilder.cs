@@ -182,7 +182,21 @@ public static class TownBuilder
     {
         PlayerSettings.companyName = "Segar Games";
         PlayerSettings.productName = "Current Pochu!";
-        PlayerSettings.bundleVersion = "0.3.0";
+        PlayerSettings.bundleVersion = "0.4.0";
+
+        // Android: package name, landscape only, 64-bit (which needs IL2CPP).
+        var android = UnityEditor.Build.NamedBuildTarget.Android;
+        PlayerSettings.SetApplicationIdentifier(android, "com.segar.currentpochu");
+        PlayerSettings.SetScriptingBackend(android, ScriptingImplementation.IL2CPP);
+        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
+        PlayerSettings.Android.bundleVersionCode = 4;
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = PlayerSettings.allowedAutorotateToLandscapeRight = true;
+        PlayerSettings.allowedAutorotateToPortrait = PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+
+        // Web: works on any static host, including ones that can't serve compressed files.
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+        PlayerSettings.WebGL.decompressionFallback = true;
         var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
         PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
@@ -1431,6 +1445,7 @@ public static class TownBuilder
         var go = new GameObject("NetworkManager");
         var manager = go.AddComponent<NetworkManager>();
         manager.NetworkConfig.NetworkTransport = go.AddComponent<UnityTransport>();
+        go.AddComponent<Unity.Netcode.Transports.SinglePlayer.SinglePlayerTransport>(); // used for solo games
         manager.NetworkConfig.PlayerPrefab = player;
 
         // Everything the server may spawn has to be on this list on every machine.

@@ -33,7 +33,9 @@ public class GameUI : MonoBehaviour
     CanvasScaler scaler;
     GameObject title, hud, dialogue, pause, toast;
     Button soloButton, hostButton, joinButton;
-    GameObject eraseButton, settings, credits;
+    GameObject eraseButton, settings, credits, touchControls, quitButton;
+    RectTransform stickBase, stickKnob;
+    TouchScreenKeyboard softKeyboard;
     PixelLabel musicValue, soundValue, fullscreenValue, difficultyValue;
     readonly PixelLabel[] keyLabels = new PixelLabel[Controls.Names.Length];
     int rebinding = -1; // which action is waiting for a key press, if any
@@ -60,8 +62,11 @@ public class GameUI : MonoBehaviour
         Build();
         Sfx.Begin();
         // Start in the window mode the player chose last time (fullscreen by default).
-        if (!Application.isEditor && Screen.fullScreen != GameSettings.Fullscreen)
+        bool desktop = !Application.isEditor && !Application.isMobilePlatform &&
+                       Application.platform != RuntimePlatform.WebGLPlayer;
+        if (desktop && Screen.fullScreen != GameSettings.Fullscreen)
             GameSettings.Fullscreen = GameSettings.Fullscreen;
+        TouchInput.Active = Application.isMobilePlatform;
     }
 
     void OnEnable()
@@ -88,9 +93,10 @@ public class GameUI : MonoBehaviour
         Sfx.Tick();
 
         var keys = Keyboard.current;
-        if (keys != null && keys.f11Key.wasPressedThisFrame) GameSettings.Fullscreen = !GameSettings.Fullscreen;
+        UpdateTouch(keys);
+        if (Controls.Tapped(Key.F11)) GameSettings.Fullscreen = !GameSettings.Fullscreen;
         if (settings.activeSelf) UpdateSettings(keys);
-        if (keys != null && keys.escapeKey.wasPressedThisFrame && (settings.activeSelf || credits.activeSelf))
+        if (Controls.Tapped(Key.Escape) && (settings.activeSelf || credits.activeSelf))
         {
             settings.SetActive(false);
             credits.SetActive(false);
@@ -125,11 +131,20 @@ public class GameUI : MonoBehaviour
         codeEntryLabel.Text = codeEntry.Length == 0 && !blink ? "CODE" : codeEntry + (blink ? "_" : " ");
         codeEntryLabel.Colour = codeEntry.Length == 0 ? Dim : Yellow;
 
-        var keyboard = Keyboard.current;
-        if (keyboard == null || !usable) return;
-        if (keyboard.backspaceKey.wasPressedThisFrame && codeEntry.Length > 0)
+        // On a phone the code is typed with the on-screen keyboard.
+        if (softKeyboard != null)
+        {
+            string typed = "";
+            foreach (char c in softKeyboard.text)
+                if (char.IsLetterOrDigit(c) && typed.Length < 8) typed += char.ToUpperInvariant(c);
+            codeEntry = typed;
+            if (softKeyboard.status != TouchScreenKeyboard.Status.Visible) softKeyboard = null;
+        }
+
+        if (!usable) return;
+        if (Controls.Tapped(Key.Backspace) && codeEntry.Length > 0)
             codeEntry = codeEntry[..^1];
-        if (keyboard.enterKey.wasPressedThisFrame && codeEntry.Length > 0)
+        if (Controls.Tapped(Key.Enter) && codeEntry.Length > 0)
             _ = sessions.Join(codeEntry);
     }
 
@@ -153,8 +168,7 @@ public class GameUI : MonoBehaviour
         bulbIcon.sprite = lit > 0 ? bulbOn : bulbOff;
 
         var player = PlayerController.Local;
-        var keyboard = Keyboard.current;
-        if (player == null || keyboard == null) return;
+        if (player == null) return;
 
         if (!introShown)
         {
@@ -188,24 +202,97 @@ public class GameUI : MonoBehaviour
             if (banner.Length > 0) iceLabel.Text = banner;
         }
 
-        if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf && !settings.activeSelf)
+        if (Controls.Tapped(Key.Escape) && !dialogue.activeSelf && !settings.activeSelf)
             pause.SetActive(!pause.activeSelf);
 
         if (settings.activeSelf) return;
-        bool confirm = Controls.Pressed(GameAction.Interact) || keyboard.spaceKey.wasPressedThisFrame ||
-                       keyboard.enterKey.wasPressedThisFrame;
-        bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+        bool confirm = Controls.Pressed(GameAction.Interact) || Controls.Tapped(Key.Space) ||
+                       Controls.Tapped(Key.Enter) || TouchInput.Use;
+        // A click or a tap anywhere also moves dialogue along.
+        bool click = Pointer.current != null && Pointer.current.press.wasPressedThisFrame;
 
         if (dialogue.activeSelf) UpdateDialogue(confirm || click);
         else if (confirm && !pause.activeSelf && player.Nearby != null) Interact(player.Nearby, player);
 
         var nearby = dialogue.activeSelf || pause.activeSelf ? null : player.Nearby;
         hintLabel.gameObject.SetActive(nearby != null);
-        if (nearby != null) hintLabel.Text = $"[{Controls.Label(GameAction.Interact)}] {nearby.verb}";
+        if (nearby != null) hintLabel.Text = TouchInput.Active ? nearby.verb : $"[{Controls.Label(GameAction.Interact)}] {nearby.verb}";
 
         // Messages sit at the bottom of the screen, or just above the dialogue box.
         ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 62f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    // ------------------------------------------------------------ touch controls
+
+    // Phones and tablets get a stick on the left and buttons on the right.
+    void UpdateTouch(Keyboard keyboard)
+    {
+        var screen = Touchscreen.current;
+        if (screen != null && screen.primaryTouch.press.isPressed) TouchInput.Active = true;
+        if (!Application.isMobilePlatform && keyboard != null && keyboard.anyKey.wasPressedThisFrame) TouchInput.Active = false;
+
+        bool playing = hud.activeSelf && !dialogue.activeSelf && !pause.activeSelf && !settings.activeSelf;
+        touchControls.SetActive(TouchInput.Active && playing);
+
+        // The stick appears wherever a finger lands on the left side of the screen.
+        TouchInput.Move = Vector2.zero;
+        var home = new Vector2(52f, 52f);
+        stickBase.anchoredPosition = home;
+        stickKnob.anchoredPosition = home;
+        if (screen == null || !touchControls.activeSelf) return;
+
+        foreach (var touch in screen.touches)
+        {
+            if (!touch.press.isPressed) continue;
+            Vector2 start = touch.startPosition.ReadValue();
+            if (start.x > Screen.width * 0.45f || start.y > Screen.height * 0.75f) continue;
+
+            float reach = Screen.height * 0.13f;
+            Vector2 pull = Vector2.ClampMagnitude(touch.position.ReadValue() - start, reach);
+            if (pull.magnitude > reach * 0.2f) TouchInput.Move = pull / reach;
+            stickBase.anchoredPosition = start / scaler.scaleFactor;
+            stickKnob.anchoredPosition = (start + pull) / scaler.scaleFactor;
+            break;
+        }
+    }
+
+    void LateUpdate()
+    {
+        // Button taps last exactly one frame.
+        TouchInput.Use = TouchInput.Whistle = false;
+    }
+
+    void BuildTouchControls(Transform canvas)
+    {
+        touchControls = Group(canvas, "Touch Controls");
+        var corner = Vector2.zero;
+        stickBase = Round(touchControls.transform, "stick_base", corner, new Vector2(52, 52), 0.55f).rectTransform;
+        stickKnob = Round(touchControls.transform, "stick_knob", corner, new Vector2(52, 52), 0.8f).rectTransform;
+
+        var right = Vector2.right;
+        TouchButton("USE", right, new Vector2(-40, 62), new Vector2(56, 34), () => TouchInput.Use = true);
+        TouchButton("DOG", right, new Vector2(-96, 40), new Vector2(46, 24), () => TouchInput.Whistle = true);
+        var edge = new Vector2(1f, 0.5f);
+        TouchButton("MENU", edge, new Vector2(-28, 16), new Vector2(46, 20), () => pause.SetActive(true));
+        TouchButton("TASKS", edge, new Vector2(-28, -10), new Vector2(46, 20), () => showTasks = !showTasks);
+        touchControls.SetActive(false);
+    }
+
+    void TouchButton(string text, Vector2 anchor, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction tap)
+    {
+        var button = MakeButton(touchControls.transform, text, anchor, position, size, tap);
+        var colours = button.colors;
+        colours.normalColor = new Color(1f, 1f, 1f, 0.8f);
+        button.colors = colours;
+    }
+
+    static Image Round(Transform parent, string sprite, Vector2 anchor, Vector2 position, float alpha)
+    {
+        var image = Box(parent, sprite, anchor, new Vector2(0.5f, 0.5f), position, Vector2.zero);
+        ActualSize(image);
+        image.color = new Color(1f, 1f, 1f, alpha);
+        return image;
     }
 
     // ------------------------------------------------------------ settings
@@ -400,7 +487,15 @@ public class GameUI : MonoBehaviour
         Label(title.transform, "Segar Games", bottom, bottom, new Vector2(0, 3), Dim);
         eraseButton = MakeButton(title.transform, "ERASE SAVE", Vector2.right, new Vector2(-58, 26), new Vector2(104, 20),
             Quests.EraseSave).gameObject;
-        MakeButton(title.transform, "QUIT", Vector2.right, new Vector2(-58, 50), new Vector2(104, 20), Application.Quit);
+        quitButton = MakeButton(title.transform, "QUIT", Vector2.right, new Vector2(-58, 50), new Vector2(104, 20), Application.Quit).gameObject;
+        quitButton.SetActive(Application.platform != RuntimePlatform.WebGLPlayer); // a web page can't quit
+
+        // Tapping the code box on a phone brings up its keyboard.
+        field.raycastTarget = true;
+        field.gameObject.AddComponent<Button>().onClick.AddListener(() =>
+        {
+            if (TouchScreenKeyboard.isSupported) softKeyboard = TouchScreenKeyboard.Open(codeEntry, TouchScreenKeyboardType.Default, false);
+        });
         MakeButton(title.transform, "SETTINGS", Vector2.zero, new Vector2(58, 50), new Vector2(104, 20), () => settings.SetActive(true));
         MakeButton(title.transform, "CREDITS", Vector2.zero, new Vector2(58, 26), new Vector2(104, 20), () => credits.SetActive(true));
 
@@ -445,6 +540,7 @@ public class GameUI : MonoBehaviour
             () => _ = SessionManager.Instance.Leave());
         pause.SetActive(false);
 
+        BuildTouchControls(canvas);
         BuildSettings(canvas);
     }
 

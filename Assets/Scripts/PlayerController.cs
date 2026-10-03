@@ -119,21 +119,16 @@ public class PlayerController : NetworkBehaviour
 
     void ReadInput()
     {
-        var keyboard = Keyboard.current;
         moveInput = Vector2.zero;
         Nearby = Interactable.Closest(transform.position, 1.7f);
 
         // Stand still while reading dialogue or using a menu.
-        if (keyboard == null || GameUI.BlocksInput) return;
+        if (GameUI.BlocksInput) return;
 
-        // The movement keys can be changed in the settings; the arrow keys always work too.
-        if (Controls.Held(GameAction.Up) || keyboard.upArrowKey.isPressed) moveInput.y += 1;
-        if (Controls.Held(GameAction.Down) || keyboard.downArrowKey.isPressed) moveInput.y -= 1;
-        if (Controls.Held(GameAction.Left) || keyboard.leftArrowKey.isPressed) moveInput.x -= 1;
-        if (Controls.Held(GameAction.Right) || keyboard.rightArrowKey.isPressed) moveInput.x += 1;
-        moveInput = moveInput.normalized;
+        // Keys (which can be changed in the settings), arrows, or the touch stick.
+        moveInput = Controls.Movement();
 
-        if (Controls.Pressed(GameAction.Whistle) && Dog.Instance != null)
+        if ((Controls.Pressed(GameAction.Whistle) || TouchInput.Whistle) && Dog.Instance != null)
         {
             Sfx.Play("whistle");
             Dog.Instance.WhistleRpc();

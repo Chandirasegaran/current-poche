@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Unity.Netcode;
+using Unity.Netcode.Transports.SinglePlayer;
 using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
@@ -67,16 +68,29 @@ public class SessionManager : MonoBehaviour
     {
         if (Busy || InGame) return;
         var network = NetworkManager.Singleton;
-        // A random local port, so two copies on one computer don't collide.
-        network.GetComponent<UnityTransport>().SetConnectionData("127.0.0.1", (ushort)UnityEngine.Random.Range(20000, 60000));
+        // A solo game talks to nobody, so it uses a transport with no network
+        // in it at all. That also lets it run in a web browser.
+        network.NetworkConfig.NetworkTransport = network.GetComponent<SinglePlayerTransport>();
         Solo = network.StartHost();
         Status = Solo ? "" : "Could not start the game.";
+    }
+
+    // Online games go through Unity's transport. Browsers can only use WebSockets.
+    static void UseOnlineTransport()
+    {
+        var network = NetworkManager.Singleton;
+        var transport = network.GetComponent<UnityTransport>();
+#if UNITY_WEBGL && !UNITY_EDITOR
+        transport.UseWebSockets = true;
+#endif
+        network.NetworkConfig.NetworkTransport = transport;
     }
 
     public Task Host()
     {
         return Run("Creating game...", async () =>
         {
+            UseOnlineTransport();
             var options = new SessionOptions { MaxPlayers = MaxPlayers }.WithRelayNetwork();
             Watch(await MultiplayerService.Instance.CreateSessionAsync(options));
             Debug.Log("JOIN CODE: " + Session.Code);
@@ -87,6 +101,7 @@ public class SessionManager : MonoBehaviour
     {
         return Run("Joining...", async () =>
         {
+            UseOnlineTransport();
             Watch(await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant()));
         });
     }
