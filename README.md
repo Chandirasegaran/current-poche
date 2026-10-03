@@ -11,14 +11,23 @@ Unity 6.6 with Netcode for GameObjects. The story and full design are in
 - Move with WASD or the arrow keys. E talks, picks up and uses things (Space, Enter or a
   click also continue dialogue). Tab hides the task list. Esc opens the menu.
 
-## What is in the game so far
+## The story, chapter by chapter
+
+Each chapter opens a new part of the map when the one before is finished.
 
 | Chapter | Where | What you do |
 |---|---|---|
 | 1. Bazaar Blackout | The town of Minnalpatti | Lead minminis to 14 dead streetlights; earn 4 fuses by finding Paati's glasses, bringing home Selvam's goat, running ice to the wedding hall and collecting 6 cricket balls; restart the transformer |
-| 2. The Pump-set | The paddy fields to the east | Cross the bund maze, open three sluice valves at once, recover the fan belt from the scarecrow, and power the pump |
+| 2. The Pump-set | Paddy fields, east | Cross the bund maze, open three sluice valves at once, recover the fan belt from the scarecrow, power the pump |
+| 3. Last Show at Raja Talkies | Cinema yard, north | Find three film reels, power the projector, turn three mirrors so the beam reaches the screen; freeze the ghosts with your torch |
+| 4. Goods Yard | Railway yard, west | Dodge three shunting engines, find four signal lanterns, set the point levers from the notice board, power the signal cabin |
+| 5. Kaatthaadi Hills | Windmill ridge, north-west | Climb three ledges against gusts of wind and release the brake on three windmills |
+| 6. The Powerhouse | The dam | Start the generator with eight minminis and send Minnal home |
 
 Bandicoots roam the dark and scatter the minminis you are leading; shine your torch at them.
+
+Progress is saved on the host's computer whenever something is achieved, and loaded when a
+game starts. **ERASE SAVE** on the title screen starts the story over.
 
 ## Working on it
 

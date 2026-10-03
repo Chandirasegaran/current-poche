@@ -99,21 +99,15 @@ are cosmetic: torch colours, hats, a bell for Battery.
 
 ## Build status
 
-Done:
+The whole story is playable from the power cut to THE END, solo or online, with saving.
+The chapters as built are listed in [README.md](README.md). They follow this document's
+plan with simpler puzzles in places: Chapter 3 is an open-air cinema yard, Chapter 4 has
+levers rather than trolleys, and Chapters 5 and 6 share one region.
 
-- Online play with join codes, solo play, Windows and Linux builds
-- The town hub, torch and darkness, minminis and streetlights, dialogue, sound and music
-- **Chapter 1** as built: the bazaar blackout became the whole town's blackout. Light the
-  streetlights and earn four fuses (Paati's glasses, Selvam's goat, ice for the wedding
-  hall, six cricket balls), then restart the transformer.
-- **Chapter 2, The Pump-set**: the bund maze, three timed sluice valves, the fan belt,
-  the pump, and Minnal's first appearance.
+Still to do:
 
-Still to build:
-
-- Chapter 3, Last Show at Raja Talkies (projector beam and mirrors)
-- Chapter 4, Goods Yard (trolleys and track switches)
-- Chapter 5, Kaatthaadi Hills (wind and turbines)
-- Chapter 6, The Powerhouse, and the ending
-- Carrying and throwing objects, Battery sitting on switches, saving progress
-- Polish: art pass, a settings menu with volume, side-jobs
+- A real play-through by hand to tune difficulty (ice timer, valve timer, wind strength,
+  bandicoots, ghosts, trains)
+- Carrying and throwing objects, and Battery sitting on switches
+- A settings menu with volume; a credits screen
+- An art pass and more sound variety; side-jobs in the town
