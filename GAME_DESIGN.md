@@ -97,15 +97,23 @@ are cosmetic: torch colours, hats, a bell for Battery.
 - Friends can drop in and out at any time. The host's game keeps the progress.
 - Puzzles adapt to the number of players; solo uses Battery the dog.
 
-## Build phases
+## Build status
 
-1. **Story and design** — this document.
-2. **Foundation** — join codes over the internet, Windows and Linux builds, walls and
-   collisions, a camera that follows you, darkness and the torch.
-3. **Core toys** — interact, carry and throw, streetlight checkpoints, dialogue boxes,
-   minminis, Battery the dog.
-4. **First playable** — the town hub, Chapter 0 and Chapter 1. Play it with a friend.
-5. **Chapters 2 and 3.**
-6. **Chapters 4 and 5.**
-7. **Chapter 6 and the ending.**
-8. **Polish** — real art pass, sound and music, menus, saving, side-jobs, final builds.
+Done:
+
+- Online play with join codes, solo play, Windows and Linux builds
+- The town hub, torch and darkness, minminis and streetlights, dialogue, sound and music
+- **Chapter 1** as built: the bazaar blackout became the whole town's blackout. Light the
+  streetlights and earn four fuses (Paati's glasses, Selvam's goat, ice for the wedding
+  hall, six cricket balls), then restart the transformer.
+- **Chapter 2, The Pump-set**: the bund maze, three timed sluice valves, the fan belt,
+  the pump, and Minnal's first appearance.
+
+Still to build:
+
+- Chapter 3, Last Show at Raja Talkies (projector beam and mirrors)
+- Chapter 4, Goods Yard (trolleys and track switches)
+- Chapter 5, Kaatthaadi Hills (wind and turbines)
+- Chapter 6, The Powerhouse, and the ending
+- Carrying and throwing objects, Battery sitting on switches, saving progress
+- Polish: art pass, a settings menu with volume, side-jobs
