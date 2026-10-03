@@ -180,7 +180,8 @@ public static class TownBuilder
         var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "UI/icon.png");
         PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true; // keep running when the window loses focus
-        PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+        PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow; // fullscreen unless turned off in settings
+        PlayerSettings.defaultIsNativeResolution = true;
         PlayerSettings.defaultScreenWidth = 1280;
         PlayerSettings.defaultScreenHeight = 720;
         PlayerSettings.resizableWindow = true;

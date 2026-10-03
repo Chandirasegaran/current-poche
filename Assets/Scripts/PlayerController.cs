@@ -124,10 +124,11 @@ public class PlayerController : NetworkBehaviour
         // Stand still while reading dialogue or using a menu.
         if (keyboard == null || GameUI.BlocksInput) return;
 
-        if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) moveInput.y += 1;
-        if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) moveInput.y -= 1;
-        if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) moveInput.x -= 1;
-        if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) moveInput.x += 1;
+        // The movement keys can be changed in the settings; the arrow keys always work too.
+        if (Controls.Held(GameAction.Up) || keyboard.upArrowKey.isPressed) moveInput.y += 1;
+        if (Controls.Held(GameAction.Down) || keyboard.downArrowKey.isPressed) moveInput.y -= 1;
+        if (Controls.Held(GameAction.Left) || keyboard.leftArrowKey.isPressed) moveInput.x -= 1;
+        if (Controls.Held(GameAction.Right) || keyboard.rightArrowKey.isPressed) moveInput.x += 1;
         moveInput = moveInput.normalized;
 
         // The torch points where you last walked.

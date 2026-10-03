@@ -14,7 +14,8 @@ public class GameUI : MonoBehaviour
     public static GameUI Instance { get; private set; }
 
     // True while the player should not be walking around.
-    public static bool BlocksInput => Instance != null && (Instance.dialogue.activeSelf || Instance.pause.activeSelf);
+    public static bool BlocksInput => Instance != null &&
+        (Instance.dialogue.activeSelf || Instance.pause.activeSelf || Instance.settings.activeSelf);
 
     static readonly Color Yellow = new(1f, 0.86f, 0.42f);
     static readonly Color Pale = new(0.82f, 0.86f, 0.98f);
@@ -32,7 +33,10 @@ public class GameUI : MonoBehaviour
     CanvasScaler scaler;
     GameObject title, hud, dialogue, pause, toast;
     Button soloButton, hostButton, joinButton;
-    GameObject eraseButton;
+    GameObject eraseButton, settings, credits;
+    PixelLabel musicValue, soundValue, fullscreenValue;
+    readonly PixelLabel[] keyLabels = new PixelLabel[Controls.Names.Length];
+    int rebinding = -1; // which action is waiting for a key press, if any
     bool showTasks = true;
     float joinedAt;
     GameObject questPanel;
@@ -55,6 +59,9 @@ public class GameUI : MonoBehaviour
         Instance = this;
         Build();
         Sfx.Begin();
+        // Start in the window mode the player chose last time (fullscreen by default).
+        if (!Application.isEditor && Screen.fullScreen != GameSettings.Fullscreen)
+            GameSettings.Fullscreen = GameSettings.Fullscreen;
     }
 
     void OnEnable()
@@ -72,6 +79,16 @@ public class GameUI : MonoBehaviour
     void Update()
     {
         scaler.scaleFactor = Mathf.Max(1, Mathf.FloorToInt(Screen.height / 216f));
+
+        var keys = Keyboard.current;
+        if (keys != null && keys.f11Key.wasPressedThisFrame) GameSettings.Fullscreen = !GameSettings.Fullscreen;
+        if (settings.activeSelf) UpdateSettings(keys);
+        if (keys != null && keys.escapeKey.wasPressedThisFrame && (settings.activeSelf || credits.activeSelf))
+        {
+            settings.SetActive(false);
+            credits.SetActive(false);
+            return;
+        }
 
         var sessions = SessionManager.Instance;
         bool inGame = sessions != null && sessions.InGame;
@@ -144,7 +161,7 @@ public class GameUI : MonoBehaviour
                 return;
             }
             Say(Intro);
-            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nTab hides the task list.";
+            afterDialogueToast = "Shine your torch on the glowing minminis.\nLead 3 of them to a dead streetlight.\nEsc opens the menu and settings.";
         }
         else if (!celebrated && total > 0 && lit == total)
         {
@@ -154,7 +171,7 @@ public class GameUI : MonoBehaviour
         }
 
         var quests = Quests.Instance;
-        if (keyboard.tabKey.wasPressedThisFrame) showTasks = !showTasks;
+        if (Controls.Pressed(GameAction.Tasks)) showTasks = !showTasks;
         questPanel.SetActive(showTasks && !dialogue.activeSelf); // never cover the story
         if (quests != null)
         {
@@ -164,10 +181,11 @@ public class GameUI : MonoBehaviour
             if (banner.Length > 0) iceLabel.Text = banner;
         }
 
-        if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf)
+        if (keyboard.escapeKey.wasPressedThisFrame && !dialogue.activeSelf && !settings.activeSelf)
             pause.SetActive(!pause.activeSelf);
 
-        bool confirm = keyboard.eKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame ||
+        if (settings.activeSelf) return;
+        bool confirm = Controls.Pressed(GameAction.Interact) || keyboard.spaceKey.wasPressedThisFrame ||
                        keyboard.enterKey.wasPressedThisFrame;
         bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
 
@@ -176,11 +194,84 @@ public class GameUI : MonoBehaviour
 
         var nearby = dialogue.activeSelf || pause.activeSelf ? null : player.Nearby;
         hintLabel.gameObject.SetActive(nearby != null);
-        if (nearby != null) hintLabel.Text = $"[E] {nearby.verb}";
+        if (nearby != null) hintLabel.Text = $"[{Controls.Label(GameAction.Interact)}] {nearby.verb}";
 
         // Messages sit at the bottom of the screen, or just above the dialogue box.
         ((RectTransform)toast.transform).anchoredPosition = new Vector2(0f, dialogue.activeSelf ? 70f : 8f);
         if (toast.activeSelf && (toastTimer -= Time.deltaTime) <= 0f) toast.SetActive(false);
+    }
+
+    // ------------------------------------------------------------ settings
+
+    void UpdateSettings(Keyboard keyboard)
+    {
+        musicValue.Text = Mathf.RoundToInt(GameSettings.Music * 10) + " / 10";
+        soundValue.Text = Mathf.RoundToInt(GameSettings.Sound * 10) + " / 10";
+        fullscreenValue.Text = GameSettings.Fullscreen ? "ON" : "OFF";
+        for (int i = 0; i < keyLabels.Length; i++)
+            keyLabels[i].Text = rebinding == i ? "press a key" : Controls.Label((GameAction)i);
+
+        // Waiting for the player to press the new key for an action.
+        if (rebinding < 0 || keyboard == null) return;
+        foreach (var key in keyboard.allKeys)
+        {
+            if (!key.wasPressedThisFrame) continue;
+            if (key.keyCode != Key.Escape) Controls.Set((GameAction)rebinding, key.keyCode);
+            rebinding = -1;
+            break;
+        }
+    }
+
+    void BuildSettings(Transform canvas)
+    {
+        var top = new Vector2(0.5f, 1f);
+        var centre = new Vector2(0.5f, 0.5f);
+        var topLeft = new Vector2(0f, 1f);
+
+        settings = Backdrop(canvas, "Settings");
+        var panel = Box(settings.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(250, 208)).transform;
+        Label(panel, "SETTINGS", top, top, new Vector2(0, -6), Yellow);
+
+        PixelLabel Row(string name, float y, System.Action<int> change)
+        {
+            Label(panel, name, topLeft, topLeft, new Vector2(14, y), Pale);
+            MakeButton(panel, "-", topLeft, new Vector2(118, y + 2), new Vector2(18, 15), () => change(-1));
+            MakeButton(panel, "+", topLeft, new Vector2(196, y + 2), new Vector2(18, 15), () => change(1));
+            return Label(panel, "", topLeft, top, new Vector2(157, y), Yellow);
+        }
+        musicValue = Row("Music", -24, step => GameSettings.Music += step * 0.1f);
+        soundValue = Row("Sound", -42, step => { GameSettings.Sound += step * 0.1f; Sfx.Play("pickup"); });
+
+        Label(panel, "Fullscreen (F11)", topLeft, topLeft, new Vector2(14, -60), Pale);
+        var toggle = MakeButton(panel, "", topLeft, new Vector2(157, -58), new Vector2(60, 15),
+            () => GameSettings.Fullscreen = !GameSettings.Fullscreen);
+        fullscreenValue = toggle.GetComponentInChildren<PixelLabel>();
+
+        for (int i = 0; i < Controls.Names.Length; i++)
+        {
+            int action = i;
+            float y = -80 - i * 15;
+            Label(panel, Controls.Names[i], topLeft, topLeft, new Vector2(14, y), Pale);
+            var button = MakeButton(panel, "", topLeft, new Vector2(170, y + 2), new Vector2(86, 14), () => rebinding = action);
+            keyLabels[i] = button.GetComponentInChildren<PixelLabel>();
+        }
+
+        MakeButton(panel, "RESET KEYS", top, new Vector2(-58, -187), new Vector2(104, 17), Controls.ResetAll);
+        MakeButton(panel, "BACK", top, new Vector2(58, -187), new Vector2(104, 17), () => settings.SetActive(false));
+        settings.SetActive(false);
+
+        credits = Backdrop(canvas, "Credits");
+        var page = Box(credits.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(260, 168)).transform;
+        Label(page, "CURRENT POCHU!", top, top, new Vector2(0, -8), Yellow);
+        Label(page,
+            "A Segar Games story\n\n" +
+            "Story, design, code, pixel art and music\n" +
+            "made by Chandirasegaran, with Claude\n\n" +
+            "Built with Unity and Netcode for GameObjects\n\n" +
+            "Thank you for playing. Nandri!",
+            top, top, new Vector2(0, -26), Pale);
+        MakeButton(page, "BACK", top, new Vector2(0, -142), new Vector2(104, 17), () => credits.SetActive(false));
+        credits.SetActive(false);
     }
 
     void Interact(Interactable target, PlayerController player)
@@ -291,6 +382,8 @@ public class GameUI : MonoBehaviour
         Label(title.transform, "Segar Games", bottom, bottom, new Vector2(0, 3), Dim);
         eraseButton = MakeButton(title.transform, "ERASE SAVE", Vector2.right, new Vector2(-58, 26), new Vector2(104, 20),
             Quests.EraseSave).gameObject;
+        MakeButton(title.transform, "SETTINGS", Vector2.zero, new Vector2(58, 50), new Vector2(104, 20), () => settings.SetActive(true));
+        MakeButton(title.transform, "CREDITS", Vector2.zero, new Vector2(58, 26), new Vector2(104, 20), () => credits.SetActive(true));
 
         // ---- in-game heads-up display
         hud = Group(canvas, "HUD");
@@ -320,12 +413,29 @@ public class GameUI : MonoBehaviour
         moreLabel = Label(dialogue.transform, ">", Vector2.right, Vector2.right, new Vector2(-8, 4), Yellow);
         dialogue.SetActive(false);
 
-        pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 88)).gameObject;
+        pause = Box(hud.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(150, 112)).gameObject;
         Label(pause.transform, "PAUSED", top, top, new Vector2(0, -8), Yellow);
-        MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 24), () => pause.SetActive(false));
-        MakeButton(pause.transform, "LEAVE GAME", top, new Vector2(0, -54), new Vector2(120, 24),
+        MakeButton(pause.transform, "RESUME", top, new Vector2(0, -26), new Vector2(120, 22), () => pause.SetActive(false));
+        MakeButton(pause.transform, "SETTINGS", top, new Vector2(0, -52), new Vector2(120, 22), () =>
+        {
+            pause.SetActive(false);
+            settings.SetActive(true);
+        });
+        MakeButton(pause.transform, "LEAVE GAME", top, new Vector2(0, -78), new Vector2(120, 22),
             () => _ = SessionManager.Instance.Leave());
         pause.SetActive(false);
+
+        BuildSettings(canvas);
+    }
+
+    // A dark sheet over the whole screen, to put a menu on. It also swallows
+    // clicks, so buttons underneath can't be pressed by accident.
+    static GameObject Backdrop(Transform parent, string name)
+    {
+        var group = Group(parent, name);
+        var sheet = group.AddComponent<Image>();
+        sheet.color = new Color(0.02f, 0.03f, 0.09f, 0.93f);
+        return group;
     }
 
     static GameObject Group(Transform parent, string name)

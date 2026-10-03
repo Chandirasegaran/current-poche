@@ -17,6 +17,16 @@ public static class Sfx
         effects = go.AddComponent<AudioSource>();
         music = Loop(go, "music", 0.3f);
         ambience = Loop(go, "ambience", 0.45f);
+        GameSettings.Apply();
+    }
+
+    // Both run from 0 (silent) to 1 (full).
+    public static void SetVolumes(float musicLevel, float soundLevel)
+    {
+        if (effects == null) return;
+        music.volume = 0.42f * musicLevel;
+        ambience.volume = 0.55f * soundLevel;
+        effects.volume = soundLevel;
     }
 
     static AudioSource Loop(GameObject go, string name, float volume)
