@@ -47,6 +47,30 @@ public static class TownBuilder
     static readonly RectInt GoodsYard = Area(-148, -38, -70, -6);
     static readonly int[] Tracks = { -14, -21, -32 };
 
+    // North of the goods yard rise the Kaatthaadi Hills (Chapter 5): solid rock
+    // with a path zigzagging up three windy ledges to the dam (Chapter 6).
+    static readonly RectInt Hills = Area(-148, -5, -72, 92);
+    static readonly RectInt[] Ledges = { Area(-140, 10, -108, 13), Area(-140, 31, -84, 34), Area(-130, 53, -84, 56) };
+    static readonly RectInt[] Climbs = { Area(-111, -5, -108, 13), Area(-140, 13, -137, 34), Area(-87, 34, -84, 56), Area(-130, 56, -127, 70) };
+    static readonly RectInt Plateau = Area(-140, 70, -80, 86);
+
+    static string HillsAt(int x, int y)
+    {
+        var cell = new Vector2Int(x, y);
+        if (!Hills.Contains(cell)) return "grass";
+        if (Plateau.Contains(cell)) return "cement";
+        if (x >= Plateau.xMin && x < Plateau.xMax && y > Plateau.yMax - 1) return "water"; // the reservoir
+        foreach (var climb in Climbs)
+            if (climb.Contains(cell)) return "dirt";
+        foreach (var ledge in Ledges)
+        {
+            if (ledge.Contains(cell)) return "dirt";
+            // the crumbling strip along the downhill side of each ledge
+            if (y == ledge.yMin - 1 && x >= ledge.xMin && x < ledge.xMax) return "cliff";
+        }
+        return "rock";
+    }
+
     static string YardAt(int x, int y)
     {
         if (y >= Streets[2] && y <= Streets[2] + 3 && x > GoodsYard.xMax - 1) return "road";
@@ -110,7 +134,7 @@ public static class TownBuilder
         Set(network.GetComponent<WorldSpawner>(), "bandicootPrefab", bandicootPrefab.GetComponent<NetworkObject>());
         Set(network.GetComponent<WorldSpawner>(), "bandicootSpots", BuildBandicootSpots());
 
-        Set(network.GetComponent<WorldSpawner>(), "minminiCount", 72);
+        Set(network.GetComponent<WorldSpawner>(), "minminiCount", 86);
 
         var quests = new GameObject("Quests");
         quests.AddComponent<NetworkObject>();
@@ -118,6 +142,7 @@ public static class TownBuilder
         BuildFields(questState);
         BuildCinema(questState, north, network.GetComponent<WorldSpawner>());
         BuildGoodsYard(questState, west);
+        BuildHills(questState);
         Fill(questState.FindProperty("powerOn"), powerLights);
         Fill(questState.FindProperty("powerOff"), new List<GameObject> { east });
         questState.ApplyModifiedPropertiesWithoutUndo();
@@ -339,7 +364,7 @@ public static class TownBuilder
         return Island.Contains(cell) ? "grass" : "paddy";
     }
 
-    static bool Blocks(string ground) => ground == "paddy" || ground == "water" || ground == "wall";
+    static bool Blocks(string ground) => ground == "paddy" || ground == "water" || ground == "wall" || ground == "rock";
 
     static string CinemaAt(int x, int y)
     {
@@ -352,6 +377,7 @@ public static class TownBuilder
     static string GroundAt(int x, int y)
     {
         if (x >= FieldsStart) return FieldAt(x, y);
+        if (x < -65 && y >= Hills.yMin) return HillsAt(x, y);
         if (y >= Yard.yMin) return CinemaAt(x, y);
         if (x < -65) return YardAt(x, y);
 
@@ -831,6 +857,144 @@ public static class TownBuilder
         quests.FindProperty("minnalOnSignal").objectReferenceValue = minnal;
     }
 
+    // Chapters 5 and 6: three windy ledges with a windmill to release on the
+    // way up, then the dam, the powerhouse generator, and Minnal waiting to go home.
+    static void BuildHills(SerializedObject quests)
+    {
+        var gate = Barricade(new Vector3(-109f, -5.4f, 0f), false,
+            "|RIDGE PATH. Closed until the night goods has cleared the yard.");
+
+        for (int i = 0; i < Ledges.Length; i++)
+        {
+            var ledge = Ledges[i];
+            var centre = new Vector3(ledge.center.x, ledge.center.y, 0f);
+
+            // Where you start the ledge from, and climb back to if you fall.
+            bool entersFromEast = i != 1;
+            var start = new GameObject($"Ledge {i + 1} Start").transform;
+            start.position = new Vector3(entersFromEast ? ledge.xMax - 1.5f : ledge.xMin + 1.5f, centre.y, 0f);
+
+            var edge = new GameObject($"Ledge {i + 1} Edge");
+            // The edge stops short of the end where the path comes up from below.
+            float edgeWidth = ledge.width - 5f;
+            float edgeLeft = entersFromEast ? ledge.xMin : ledge.xMin + 5f;
+            edge.transform.position = new Vector3(edgeLeft + edgeWidth / 2f, ledge.yMin - 0.6f, 0f);
+            var drop = edge.AddComponent<BoxCollider2D>();
+            drop.isTrigger = true;
+            drop.size = new Vector2(edgeWidth, 0.5f);
+            Set(edge.AddComponent<Cliff>(), "climbBackTo", start);
+
+            var gusts = new GameObject($"Ledge {i + 1} Wind") { transform = { position = centre } };
+            var streaks = gusts.AddComponent<ParticleSystem>();
+            var main = streaks.main;
+            main.playOnAwake = false;
+            main.startLifetime = 0.45f;
+            main.startSpeed = 0f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.12f);
+            main.startColor = new Color(0.85f, 0.9f, 1f, 0.6f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            var emission = streaks.emission;
+            emission.rateOverTime = 90f;
+            var shape = streaks.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(ledge.width, ledge.height + 2f, 0f);
+            var drift = streaks.velocityOverLifetime;
+            drift.enabled = true;
+            drift.x = 0f;
+            drift.y = -11f;
+            drift.z = 0f;
+            var streakRenderer = streaks.GetComponent<ParticleSystemRenderer>();
+            streakRenderer.sharedMaterial = GlowMaterial();
+            streakRenderer.sortingOrder = GlowOrder;
+            streakRenderer.renderMode = ParticleSystemRenderMode.Stretch;
+            streakRenderer.velocityScale = 0.12f;
+
+            var wind = new SerializedObject(gusts.AddComponent<Wind>());
+            wind.FindProperty("size").vector2Value = new Vector2(ledge.width, ledge.height);
+            wind.FindProperty("offset").floatValue = i * 2f;
+            wind.FindProperty("streaks").objectReferenceValue = streaks;
+            wind.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        Vector3[] windmillSpots = { new(-118f, 33.7f, 0f), new(-96f, 33.7f, 0f), new(-110f, 55.7f, 0f) };
+        var blades = quests.FindProperty("blades");
+        var lights = quests.FindProperty("windmillLights");
+        blades.arraySize = lights.arraySize = windmillSpots.Length;
+        for (int i = 0; i < windmillSpots.Length; i++)
+        {
+            var tower = Prop("Windmill", "Props/windmill_tower", windmillSpots[i]);
+            Solid(tower, 0.9f, 0.4f);
+            Act(tower, "Release the brake", $"brake{i}");
+            var rotor = Child(tower, "Blades", new Vector3(0f, 4.85f, 0f)).AddComponent<SpriteRenderer>();
+            rotor.sprite = Load("Decals/windmill_blades");
+            rotor.sortingOrder = 5;
+            var spinner = rotor.gameObject.AddComponent<Spinner>();
+            spinner.enabled = false;
+            var beacon = Child(tower, "Beacon", new Vector3(0f, 0.6f, 0f));
+            Light(beacon, new Color(0.85f, 0.95f, 1f), 1.3f, 1.5f, 8f);
+            blades.GetArrayElementAtIndex(i).objectReferenceValue = spinner;
+            lights.GetArrayElementAtIndex(i).objectReferenceValue = beacon;
+        }
+
+        // The dam: a long wall with the reservoir behind it.
+        for (float x = Plateau.xMin + 4f; x < Plateau.xMax; x += 8f)
+            Solid(Prop("Dam Wall", "Props/dam_wall", new Vector3(x, Plateau.yMax - 1.2f, 0f)), 8f, 1.4f);
+
+        var house = Building("Powerhouse", "Props/powerhouse_off", -98f, 77f);
+        Act(house, "Inspect", "generator");
+        var pool = Light(Child(house, "Pool", new Vector3(0f, -0.6f, 0f)), Warm, 1.5f, 1.5f, 8f);
+        var glow = Glow(house, new Vector3(-0.1f, 1.4f, 0f), new Color(0.6f, 1f, 0.7f), 0.6f);
+        house.AddComponent<NetworkObject>();
+        var generator = house.AddComponent<StreetLight>();
+        Set(generator, "needed", 8);
+        Set(generator, "isStreetlight", false);
+        Set(generator, "pole", house.GetComponent<SpriteRenderer>());
+        Set(generator, "litSprite", Load("Props/powerhouse_on"));
+        Set(generator, "deadSprite", Load("Props/powerhouse_off"));
+        Set(generator, "pool", pool);
+        Set(generator, "glow", glow);
+
+        Solid(Prop("Cycle", "Props/cycle", new Vector3(-123.6f, 73.6f, 0f)), 1.4f, 0.4f);
+        var lineman = Prop("Lineman Murugesan", "Characters/lineman", new Vector3(-121.8f, 73.8f, 0f));
+        Solid(lineman, 0.6f, 0.4f);
+        Act(lineman, "Talk", "murugesan");
+        var lantern = Child(lineman, "Lantern", new Vector3(0.5f, 0.6f, 0f));
+        Light(lantern, new Color(1f, 0.7f, 0.35f), 1.2f, 0.3f, 3.5f);
+        lantern.AddComponent<FlickerLight>();
+
+        // Minnal, waiting on the dam wall, too weak to jump.
+        var waiting = Child(props, "Minnal Waiting", new Vector3(-116f, Plateau.yMax + 0.3f, 0f));
+        var dim = Child(waiting, "Minnal", Vector3.zero).AddComponent<SpriteRenderer>();
+        dim.sprite = Load("Characters/minnal");
+        dim.sharedMaterial = GlowMaterial();
+        dim.color = new Color(1f, 1f, 1f, 0.7f);
+        dim.sortingOrder = GlowOrder;
+        Light(dim.gameObject, new Color(1f, 0.95f, 0.6f), 1.1f, 0.2f, 3f);
+        dim.gameObject.AddComponent<FlickerLight>();
+        Act(Child(waiting, "Look", new Vector3(0f, -2.4f, 0f)), "Look", "minnal");
+
+        var leaving = Prop("Minnal Leaving", "Characters/minnal", waiting.transform.position);
+        var bright = leaving.GetComponent<SpriteRenderer>();
+        bright.sharedMaterial = GlowMaterial();
+        bright.sortingOrder = GlowOrder;
+        var cameo = leaving.AddComponent<MinnalCameo>();
+        Set(cameo, "glow", Light(leaving, new Color(1f, 0.95f, 0.6f), 3f, 0.3f, 7f));
+        var escape = new SerializedObject(cameo);
+        escape.FindProperty("escape").vector3Value = new Vector3(0f, 45f, 0f);
+        escape.ApplyModifiedPropertiesWithoutUndo();
+        leaving.SetActive(false);
+
+        var flash = new GameObject("Sky Flash");
+        Set(flash.AddComponent<Flash>(), "moonlight", GameObject.Find("Moonlight").GetComponent<Light2D>());
+        flash.SetActive(false);
+
+        Fill(quests.FindProperty("yardOff"), new List<GameObject> { gate });
+        quests.FindProperty("generator").objectReferenceValue = generator;
+        quests.FindProperty("minnalWaiting").objectReferenceValue = waiting;
+        quests.FindProperty("minnalLeaving").objectReferenceValue = leaving;
+        quests.FindProperty("skyFlash").objectReferenceValue = flash;
+    }
+
     // Adds a prefab to the list of things the server is allowed to spawn.
     static void AddSpawnable(GameObject prefab)
     {
@@ -914,7 +1078,13 @@ public static class TownBuilder
             float x = random.Next(GoodsYard.xMin + 2, GoodsYard.xMax - 2) + 0.5f, y = random.Next(GoodsYard.yMin + 2, GoodsYard.yMax - 2) + 0.5f;
             Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
         }
-        while (spots.childCount < 162) // and some out in the fields
+        while (spots.childCount < 160) // some on the ridge and at the dam
+        {
+            float x = random.Next(Hills.xMin, Hills.xMax) + 0.5f, y = random.Next(8, Plateau.yMax - 2) + 0.5f;
+            string ground = GroundAt((int)x, (int)y);
+            if (ground == "dirt" || ground == "cement") Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));
+        }
+        while (spots.childCount < 190) // and some out in the fields
         {
             float x = random.Next(FieldsStart, FieldsEnd - 2) + 0.5f, y = random.Next(-24, 23) + 0.5f;
             if (!Blocks(GroundAt((int)x, (int)y))) Child(spots.gameObject, "Spot", new Vector3(x, y, 0f));

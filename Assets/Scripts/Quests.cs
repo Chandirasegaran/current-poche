@@ -34,7 +34,25 @@ public class Quests : NetworkBehaviour
         FilmPlayed = 2048,
         // Chapter 4: the goods yard
         YardDone = 4096,
+        // Chapters 5 and 6: the hills and the powerhouse
+        Finished = 8192,
     }
+
+    public const int WindmillCount = 3;
+
+    static readonly string[] TheEnd =
+    {
+        "|The generator turns. Down in the valley, every light in Minnalpatti dims at once, as the whole town lends its current.",
+        "Lineman Murugesan|NOW, thambi! Throw the switch!",
+        "|One enormous spark climbs the wire. The little lightning stands up, shakes itself, and for the first time tonight it is not afraid.",
+        "|It looks back at you. Then it jumps.",
+        "|For one second the whole sky is daylight.",
+        "The whole town|CURRENT VANDHUDUCHU!!",
+        "Radio|--and he has hit it for SIX! Minnalpatti win the district final off the very last ball!",
+        "Paati|...I missed the whole match. Next time, kanna, fix the current BEFORE the last over.",
+        "|From that night on, the lightning over Minnalpatti never struck a single thing. It only ever lit the way home.",
+        "|THE END.   Thank you for playing CURRENT POCHU!   A Segar Games story.",
+    };
 
     public const int LanternCount = 4;
     const int LeverPattern = 0b101; // levers 1 and 3 up, lever 2 down, as on the notice board
@@ -45,7 +63,7 @@ public class Quests : NetworkBehaviour
         "|Riding on its headlamp, legs dangling, is the little lightning. It waves. You think it waves.",
         "Signal Rani|Thirty years on the railways, and that is the first passenger I have seen travel on the OUTSIDE of the lamp.",
         "Signal Rani|That train climbs to the windmill ridge, kanna, and then down to the old dam. If your bright friend is going home, it is going that way.",
-        "|CHAPTER 4 COMPLETE.   (Chapter 5: Kaatthaadi Hills is coming.)",
+        "|CHAPTER 4 COMPLETE.   The path up to the windmill ridge is open, on the north side of the yard.",
     };
 
     public const int ReelCount = 3;
@@ -94,6 +112,11 @@ public class Quests : NetworkBehaviour
     [SerializeField] Sprite leverUp, leverDown;
     [SerializeField] Transform yardEntrance;
     [SerializeField] GameObject minnalOnSignal;
+    [SerializeField] GameObject[] yardOff; // removed once the signal is green (the gate to the hills)
+    [SerializeField] Spinner[] blades;
+    [SerializeField] GameObject[] windmillLights;
+    [SerializeField] StreetLight generator;
+    [SerializeField] GameObject minnalWaiting, minnalLeaving, skyFlash;
 
     readonly NetworkVariable<int> flags = new();
     readonly NetworkVariable<int> ballMask = new();
@@ -106,7 +129,12 @@ public class Quests : NetworkBehaviour
     readonly NetworkVariable<int> lanternMask = new(); // which signal lanterns have been found
     readonly NetworkVariable<int> leverMask = new();   // which point levers are up
 
+    readonly NetworkVariable<int> brakeMask = new();   // which windmills have been released
+
     readonly List<Vector3> beamPoints = new();
+
+    public bool Finished => Has(Flag.Finished);
+    int WindmillsTurning => Bits(brakeMask.Value, WindmillCount);
 
     public bool YardDone => Has(Flag.YardDone);
     public Vector3 YardEntrance => yardEntrance.position;
@@ -180,7 +208,7 @@ public class Quests : NetworkBehaviour
     [Serializable]
     class SaveData
     {
-        public int flags, ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask;
+        public int flags, ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask;
         public List<string> lit = new(); // which lamps (and the pump) are powered
     }
 
@@ -205,7 +233,7 @@ public class Quests : NetworkBehaviour
         {
             flags = flags.Value, ballMask = ballMask.Value, fuses = fuses.Value,
             reelMask = reelMask.Value, mirrorMask = mirrorMask.Value,
-            lanternMask = lanternMask.Value, leverMask = leverMask.Value,
+            lanternMask = lanternMask.Value, leverMask = leverMask.Value, brakeMask = brakeMask.Value,
         };
         foreach (var lamp in StreetLight.Feedable)
             if (lamp.IsLit) data.lit.Add(Key(lamp));
@@ -237,6 +265,7 @@ public class Quests : NetworkBehaviour
         mirrorMask.Value = data.mirrorMask;
         lanternMask.Value = data.lanternMask;
         leverMask.Value = data.leverMask;
+        brakeMask.Value = data.brakeMask;
         foreach (var lamp in StreetLight.Feedable)
             if (data.lit.Contains(Key(lamp)) && !lamp.IsLit) lamp.ForceLit();
         yield return null;
@@ -291,9 +320,9 @@ public class Quests : NetworkBehaviour
             flags.Value = ballMask.Value = fuses.Value = 0;
             iceMeltsAt.Value = 0;
             valveShutsAt.Value = Vector3.zero;
-            reelMask.Value = mirrorMask.Value = lanternMask.Value = leverMask.Value = 0;
+            reelMask.Value = mirrorMask.Value = lanternMask.Value = leverMask.Value = brakeMask.Value = 0;
             StartCoroutine(Load());
-            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask })
+            foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
                 counter.OnValueChanged += OnCounterChanged;
         }
         flags.OnValueChanged += OnFlagsChanged;
@@ -302,7 +331,7 @@ public class Quests : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         flags.OnValueChanged -= OnFlagsChanged;
-        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask })
+        foreach (var counter in new[] { ballMask, fuses, reelMask, mirrorMask, lanternMask, leverMask, brakeMask })
             counter.OnValueChanged -= OnCounterChanged;
     }
 
@@ -317,6 +346,14 @@ public class Quests : NetworkBehaviour
 
         if (Became(Flag.PowerRestored)) Sfx.Play("power");
         if (Became(Flag.BridgeDown)) Sfx.Play("lamp");
+        if (Became(Flag.Finished))
+        {
+            Sfx.Play("power");
+            Sfx.Play("quest");
+            minnalLeaving.SetActive(true);
+            skyFlash.SetActive(true);
+            if (GameUI.Instance != null) GameUI.Instance.Say(TheEnd);
+        }
         if (Became(Flag.YardDone))
         {
             Sfx.Play("power");
@@ -395,6 +432,21 @@ public class Quests : NetworkBehaviour
         }
         screenGlow.SetActive(IsSpawned && FilmPlayed);
 
+        // The hills and the dam.
+        foreach (var go in yardOff) go.SetActive(!(IsSpawned && YardDone));
+        for (int i = 0; i < blades.Length; i++)
+        {
+            bool turning = (brakeMask.Value & (1 << i)) != 0;
+            blades[i].enabled = turning;
+            windmillLights[i].SetActive(turning);
+        }
+        minnalWaiting.SetActive(!(IsSpawned && Finished));
+        if (IsSpawned && IsServer)
+        {
+            generator.Locked = WindmillsTurning < WindmillCount;
+            if (generator.IsLit && !Finished) Raise(Flag.Finished);
+        }
+
         // The goods yard.
         foreach (var go in filmOff) go.SetActive(!(IsSpawned && FilmPlayed));
         for (int i = 0; i < levers.Length; i++)
@@ -438,7 +490,11 @@ public class Quests : NetworkBehaviour
     public string LogText()
     {
         if (!IsSpawned) return "";
-        if (YardDone) return "Chapter 4 complete!\nMore is coming.";
+        if (Finished) return "THE END\nThank you for playing!";
+        if (YardDone)
+            return "Kaatthaadi Hills\n"
+                   + (WindmillsTurning == WindmillCount ? "+ " : "- ") + $"Windmills {WindmillsTurning}/{WindmillCount}\n"
+                   + $"- Generator {generator.Charge}/{generator.Needed}";
         if (FilmPlayed)
             return "Goods Yard\n"
                    + (LanternsFound == LanternCount ? "+ " : "- ") + $"Lanterns {LanternsFound}/{LanternCount}\n"
@@ -482,6 +538,7 @@ public class Quests : NetworkBehaviour
         switch (action)
         {
             case "lineman":
+                if (Finished) return new[] { "Lineman Murugesan|Nineteen years with the Electricity Board, and tonight I helped throw a lightning bolt back into the sky. I am putting in for overtime." };
                 if (YardDone) return new[] { "Lineman Murugesan|It took the TRAIN? Up to the windmills? Of course it did. Everybody leaves this town by the night goods." };
                 if (FilmPlayed) return new[] { "Lineman Murugesan|West, along the railway? Then it is heading for the goods yard. I will oil my cycle. You get some sleep." };
                 if (Has(Flag.PumpStarted)) return new[] { "Lineman Murugesan|A lightning bolt. With EYES. Thambi, I have worked for the Electricity Board for nineteen years and nobody told me about this." };
@@ -583,6 +640,13 @@ public class Quests : NetworkBehaviour
         }
 
         if (action.StartsWith("mirror") || action.StartsWith("lever")) return Array.Empty<string>();
+        if (action.StartsWith("brake"))
+        {
+            bool already = (brakeMask.Value & (1 << (action[5] - '0'))) != 0;
+            return already
+                ? new[] { "|The windmill turns steadily, humming in the wind." }
+                : new[] { $"|You knock the brake off. The great blades shudder, catch the wind, and begin to turn. That makes {WindmillsTurning + 1} of {WindmillCount}." };
+        }
         if (action.StartsWith("lantern")) return new[] { $"|A signalman's lantern, red glass on one side and green on the other. That makes {LanternsFound + 1} of {LanternCount}." };
         if (action.StartsWith("reel")) return new[] { $"|A dusty reel of film. The label says PART {action[4] - '0' + 1}. That makes {ReelsFound + 1} of {ReelCount}." };
 
@@ -599,6 +663,24 @@ public class Quests : NetworkBehaviour
                 return Has(Flag.BridgeDown)
                     ? new[] { "|The sluice bridge is down. The canal rushes underneath." }
                     : new[] { "|The sluice bridge is raised. A faded sign: OPEN ALL THREE VALVES TO LOWER. There are valve wheels out on the bunds, north, south and east of here." };
+
+            case "murugesan":
+                if (Finished) return new[] { "Lineman Murugesan|Go home, thambi. Paati will want to know who won." };
+                if (WindmillsTurning < WindmillCount) return new[]
+                {
+                    "Lineman Murugesan|You made it! I cycled up the long way. Look at it, on the dam wall. Poor thing is nearly out.",
+                    "Lineman Murugesan|It fell out of last week's storm, and it has been drinking our current ever since, trying to get strong enough to jump home.",
+                    $"Lineman Murugesan|Every line you mended tonight ends at this powerhouse. Get all three windmills on the ridge turning, you have {WindmillsTurning}, and wake the generator. Then I can send the whole town's current up one wire. One big jolt.",
+                };
+                return new[] { $"Lineman Murugesan|All three windmills are turning! Now the generator. It needs a spark to start: {generator.Needed} minminis. I think they know what it is for. Look how they are gathering." };
+
+            case "minnal":
+                return new[] { "|The little lightning is curled up on the dam wall, dim as a dying torch. It looks at the clouds, far above, and then at you." };
+
+            case "generator":
+                if (generator.IsLit) return new[] { "|The generator sings." };
+                if (WindmillsTurning < WindmillCount) return new[] { $"|The powerhouse generator. It will not turn without the windmills. Windmills: {WindmillsTurning} of {WindmillCount}." };
+                return new[] { $"|The windmills are feeding it now. It only needs a spark to start: {generator.Needed} minminis." };
 
             case "rani":
                 if (YardDone) return new[] { "Signal Rani|Green all the way to the hills. Go on, catch your train of thought." };
@@ -729,7 +811,12 @@ public class Quests : NetworkBehaviour
                 break;
 
             default:
-                if (action.StartsWith("lever") && action.Length == 6)
+                if (action.StartsWith("brake") && action.Length == 6)
+                {
+                    brakeMask.Value |= 1 << (action[5] - '0');
+                    AnnounceRpc("", "lamp");
+                }
+                else if (action.StartsWith("lever") && action.Length == 6)
                 {
                     leverMask.Value ^= 1 << (action[5] - '0');
                     AnnounceRpc("", "click");

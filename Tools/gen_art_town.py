@@ -950,6 +950,105 @@ def make_yard_art():
     save(small([".hh.", "rrrr", "ryyr", "ryyr", "rrrr", ".bb."], {"h": "#6f7683", "r": "#c0392b", "y": "#ffe27a", "b": "#3a3d46"}), "Items", "lantern.png")
 
 
+# ---------------------------------------------------------------- chapters 5 and 6: the hills and the dam
+
+def rock_tile(seed):
+    rnd = random.Random(seed)
+    img = Image.new("RGBA", (16, 16), rgb("#5a5560"))
+    d = ImageDraw.Draw(img)
+    for _ in range(4):  # a few boulders
+        x, y, r = rnd.randrange(0, 13), rnd.randrange(0, 13), rnd.randrange(3, 6)
+        d.ellipse([x, y, x + r + 2, y + r], fill=rgb("#6d6874"))
+        d.arc([x, y, x + r + 2, y + r], 180, 300, fill=rgb("#8a8592"))
+        d.arc([x, y, x + r + 2, y + r], 0, 120, fill=rgb("#454050"))
+    return img
+
+
+def cliff_tile(seed):
+    rnd = random.Random(seed)
+    img = Image.new("RGBA", (16, 16), rgb("#16141f"))
+    px = img.load()
+    for y in range(16):  # the ledge crumbles away into darkness
+        for x in range(16):
+            if rnd.random() < (1 - y / 9.0):
+                px[x, y] = rgb("#6b5a45") if y < 3 else rgb("#3a3340")
+    return img
+
+
+def windmill_tower():
+    img = Image.new("RGBA", (24, 84), CLEAR)
+    d = ImageDraw.Draw(img)
+    steel = rgb("#d9dde6")
+    d.polygon([(9, 8), (14, 8), (17, 83), (6, 83)], fill=steel)
+    d.line([10, 9, 8, 82], fill=rgb("#ffffff"))
+    d.line([14, 9, 16, 82], fill=shade(steel, 0.75))
+    d.rectangle([6, 2, 17, 10], fill=shade(steel, 0.9))
+    d.rectangle([4, 78, 19, 83], fill=rgb("#8f867a"))
+    d.rectangle([9, 66, 14, 74], fill=rgb("#c0392b"))  # the brake box
+    return outlined(img)
+
+
+def windmill_blades():
+    size = 72
+    img = Image.new("RGBA", (size, size), CLEAR)
+    d = ImageDraw.Draw(img)
+    c = size / 2
+    for i in range(3):
+        a = math.radians(i * 120 - 90)
+        tip = (c + math.cos(a) * 34, c + math.sin(a) * 34)
+        side = (c + math.cos(a + 0.5) * 9, c + math.sin(a + 0.5) * 9)
+        d.polygon([(c, c), side, tip], fill=rgb("#eef2f8"), outline=OUTLINE)
+    d.ellipse([c - 3, c - 3, c + 3, c + 3], fill=rgb("#c0392b"), outline=OUTLINE)
+    return img
+
+
+def powerhouse(running):
+    w, h = 112, 72
+    img = Image.new("RGBA", (w, h), CLEAR)
+    d = ImageDraw.Draw(img)
+    wall = rgb("#a9a79f")
+    d.rectangle([2, 18, w - 3, h - 5], fill=wall, outline=OUTLINE)
+    d.rectangle([3, 19, w - 4, 24], fill=shade(wall, 0.72))
+    d.rectangle([3, h - 12, w - 4, h - 6], fill=shade(wall, 0.6))
+    d.rectangle([0, 10, w - 1, 18], fill=shade(wall, 1.12), outline=OUTLINE)
+    sign(img, "POWER HOUSE", [22, 0, w - 23, 11], "#2c3a66", "#ffe9a8")
+    d.rectangle([46, 38, 65, h - 5], fill=rgb("#2a1f2b"), outline=OUTLINE)
+    for x0 in (10, 26, 74, 90):
+        d.rectangle([x0, 30, x0 + 11, 50], fill=rgb("#fff2b3") if running else rgb("#141726"), outline=OUTLINE)
+        d.line([x0 + 5, 31, x0 + 5, 49], fill=rgb("#7f8491"))
+    d.ellipse([50, 44, 61, 55], fill=rgb("#3f8a5a") if running else rgb("#2a4a38"), outline=OUTLINE)  # the generator
+    stone = rgb("#8f867a")
+    d.rectangle([0, h - 4, w - 1, h - 1], fill=stone, outline=OUTLINE)
+    return img
+
+
+def dam_wall():
+    w, h = 128, 40
+    img = Image.new("RGBA", (w, h), CLEAR)
+    d = ImageDraw.Draw(img)
+    concrete = rgb("#8d8a84")
+    d.rectangle([0, 6, w - 1, h - 1], fill=concrete, outline=OUTLINE)
+    d.rectangle([0, 0, w - 1, 6], fill=shade(concrete, 1.2), outline=OUTLINE)
+    for x in range(8, w, 16):
+        d.rectangle([x, 12, x + 7, h - 1], fill=shade(concrete, 0.8))
+        d.line([x, 12, x, h - 1], fill=shade(concrete, 0.6))
+    rnd = random.Random(3)
+    for _ in range(40):
+        img.putpixel((rnd.randrange(1, w - 1), rnd.randrange(8, h - 1)), shade(concrete, 0.9))
+    return img
+
+
+def make_hills_art():
+    for i in range(3):
+        save(rock_tile(770 + i), "Tiles", f"rock_{i}.png")
+        save(cliff_tile(780 + i), "Tiles", f"cliff_{i}.png")
+    save(windmill_tower(), "Props", "windmill_tower.png")
+    save(windmill_blades(), "Decals", "windmill_blades.png")
+    save(powerhouse(False), "Props", "powerhouse_off.png")
+    save(powerhouse(True), "Props", "powerhouse_on.png")
+    save(dam_wall(), "Props", "dam_wall.png")
+
+
 def main():
     make_tiles()
     make_props()
@@ -959,3 +1058,4 @@ def main():
     make_fields_art()
     make_cinema_art()
     make_yard_art()
+    make_hills_art()

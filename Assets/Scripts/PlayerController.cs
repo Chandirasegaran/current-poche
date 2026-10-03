@@ -37,6 +37,9 @@ public class PlayerController : NetworkBehaviour
 
     public Vector2 Facing => facing.Value;
 
+    // Extra shove from outside (the wind), added to this frame's movement.
+    public Vector2 Push { get; set; }
+
     // What this player is holding. Only the server may change it.
     public Item Carrying
     {
@@ -94,7 +97,10 @@ public class PlayerController : NetworkBehaviour
     // Sent by the server to the player's own machine when a ghost or a train
     // catches them: they are put back at a safe spot.
     [Rpc(SendTo.Owner)]
-    public void SpookRpc(Vector3 backTo, string message)
+    public void SpookRpc(Vector3 backTo, string message) => SendBack(backTo, message);
+
+    // Puts this machine's own player back at a safe spot, with a message.
+    public void SendBack(Vector3 backTo, string message)
     {
         rb.position = backTo;
         transform.position = backTo;
@@ -134,7 +140,10 @@ public class PlayerController : NetworkBehaviour
         // Only the owner moves its own copy. NetworkTransform sends the result
         // to everyone else, and physics keeps us out of walls.
         if (IsSpawned && IsOwner)
-            rb.linearVelocity = moveInput * moveSpeed;
+        {
+            rb.linearVelocity = moveInput * moveSpeed + Push;
+            Push = Vector2.zero;
+        }
     }
 
     // Runs for every player on every machine, so remote players animate too.

@@ -106,6 +106,9 @@ def effects():
          + mix(noise(0.13, 0.5, 0.5, 6), tone(390, 0.13, square, end_freq=230, volume=0.6)), 0.6)
     save("bleat", tone(520, 0.45, lambda p: triangle(p) * (0.6 + 0.4 * sine(p / 22)), end_freq=430, release=0.2), 0.5)
 
+    gust = noise(1.6, 1.0, 0.93, 21)
+    save("gust", [g * math.sin(math.pi * i / len(gust)) for i, g in enumerate(gust)], 0.7)
+
     lamp = silence(1.3)
     add(lamp, tone(110, 0.35, lambda p: 2 * (p % 1) - 1, attack=0.3, volume=0.35), 0)
     for i, note in enumerate(["C6", "E6", "G6", "C7"]):
