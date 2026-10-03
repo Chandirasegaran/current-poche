@@ -67,6 +67,16 @@ WIN=$TMP/win; mkdir -p $WIN; cp -a $ROOT/Builds/Windows/. $WIN/; rm -rf $WIN/$SK
 (cd $WIN && find . -type f | wixl-heat -p ./ --component-group AppFiles --var var.SRC --directory-ref INSTALLDIR --win64 > $TMP/files.wxs)
 wixl -a x64 -D SRC=$WIN -D VERSION=$VERSION -D Win64=yes -o "$OUT/CurrentPochu-${VERSION}.msi" $PKG/currentpochu.wxs $TMP/files.wxs
 
+# ---- the web build (with our own page that fills the window) and the Android APK, if they were built
+if [ -d $ROOT/Builds/WebGL/Build ]; then
+  WEB=$TMP/web; mkdir -p $WEB; cp -a $ROOT/Builds/WebGL/Build $WEB/
+  [ -d $ROOT/Builds/WebGL/StreamingAssets ] && cp -a $ROOT/Builds/WebGL/StreamingAssets $WEB/
+  sed "s/productVersion: \"[^\"]*\"/productVersion: \"$VERSION\"/" $PKG/web/index.html > $WEB/index.html
+  (cd $WEB && zip -qr "$OUT/CurrentPochu-${VERSION}-Web.zip" .)
+fi
+APK=$(ls -t $ROOT/Builds/Android/*.apk 2>/dev/null | head -1 || true)
+[ -n "$APK" ] && cp "$APK" "$OUT/CurrentPochu-${VERSION}-Android.apk"
+
 # ---- plain zips, for people who don't want an installer
 (cd $WIN && zip -qr "$OUT/CurrentPochu-${VERSION}-Windows-portable.zip" .)
 (cd $STAGE/opt/currentpochu && zip -qr "$OUT/CurrentPochu-${VERSION}-Linux-portable.zip" .)

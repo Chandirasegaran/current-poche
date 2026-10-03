@@ -8,11 +8,16 @@ Unity 6.6 with Netcode for GameObjects. The story and full design are in
 
 Download an installer from the [Releases](https://github.com/Chandirasegaran/current-poche/releases) page.
 
+The game runs on Windows, Linux, Android and in a web browser, and all four can play
+together online.
+
 - **Play solo** needs no internet.
 - **Host online** gives you a join code; friends type it in on the title screen.
 - Move with WASD or the arrow keys. E talks, picks up, uses and throws things (Space, Enter
   or a click also continue dialogue). Q whistles to Battery the dog: stay, or come. Tab
   hides the task list. Esc opens the menu. F11 switches between fullscreen and a window.
+- On a phone or tablet: a stick appears under your left thumb, with USE, DOG, MENU and
+  TASKS buttons on the right. Tap anywhere to continue dialogue.
 - **Settings** (title screen or Esc menu): music and sound volume, fullscreen, difficulty,
   and every key can be remapped. **Relaxed** difficulty (the default) gives longer timers
   and slower hazards than **Normal**; in an online game the host's choice applies.
@@ -50,5 +55,9 @@ game starts. **ERASE SAVE** on the title screen starts the story over.
 - `Packaging/make-installers.sh <version>` turns the Unity builds in `Builds/` into a
   Windows setup .exe and .msi, a .deb, an .rpm, an AppImage and portable zips. It needs
   only podman.
+- In Unity, build targets WebGL (to `Builds/WebGL`) and Android (to `Builds/Android`) as
+  well as Linux and Windows; the packaging script picks up whichever exist. The Android
+  package name is `com.segar.currentpochu`. The APK is signed with Unity's debug key, which
+  is fine for installing by hand; publishing on Google Play needs your own keystore.
 - Command-line switches for a built game: `-solo`, `-host`, `-join <code>`,
   `-profile <name>` (use different profiles to run two copies on one computer).
