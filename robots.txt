@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://chandirasegaran.github.io/current-poche/sitemap.xml

@@ -1,0 +1,111 @@
+/* Current Pochu! landing page. One night-blue theme, taken from the game. */
+:root {
+  --night: #0b0d1c;
+  --panel: #131834;
+  --line: #2c376e;
+  --text: #d9def5;
+  --dim: #8f97bd;
+  --gold: #f2b33d;
+  --gold-dark: #c9862a;
+  --ink: #2a1a10;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--text);
+  font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+img { max-width: 100%; height: auto; }
+a { color: var(--gold); }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.6em; }
+h2 { font-size: clamp(1.6rem, 3.2vw, 2.3rem); color: #fff; }
+h3 { font-size: 1.15rem; color: var(--gold); }
+
+.skip { position: absolute; left: -999px; top: 0; background: var(--gold); color: var(--ink); padding: 8px 12px; z-index: 10; }
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---- hero: the 3D street sits behind the text */
+.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; overflow: hidden;
+  background: #0b0d1c url("assets/shots/town-small.jpg") center / cover no-repeat; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 46% at 50% 44%, rgba(7, 10, 24, 0.72) 0%, rgba(7, 10, 24, 0) 72%),
+    linear-gradient(180deg, rgba(11, 13, 28, 0.6) 0%, rgba(11, 13, 28, 0) 30%, rgba(11, 13, 28, 0) 78%, var(--night) 100%); }
+
+.nav { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px clamp(16px, 4vw, 40px); }
+.nav ul { display: flex; gap: clamp(12px, 2.5vw, 28px); list-style: none; margin: 0; padding: 0; }
+.nav a { color: var(--text); text-decoration: none; font-weight: 600; }
+.nav a:hover, .nav a:focus-visible { color: var(--gold); }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand img { image-rendering: pixelated; border-radius: 6px; }
+
+.hero-text { position: relative; z-index: 2; margin: 4vh auto auto; padding: 0 20px; text-align: center; max-width: 760px; }
+.hero-text h1 { margin: 0; }
+.hero-text h1 img { width: min(430px, 78vw); image-rendering: pixelated; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35)); }
+.tagline { font-size: clamp(1.1rem, 2.4vw, 1.5rem); font-weight: 700; color: #fff; margin: 0.4em 0 0.2em; text-shadow: 0 2px 8px #000; }
+.lede { margin: 0 auto 1.3em; max-width: 34em; text-shadow: 0 2px 8px #000; }
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.fine { color: var(--dim); font-size: 0.9rem; }
+.hero .fine { color: #c3c9e8; text-shadow: 0 1px 6px #000; }
+.scroll-hint { position: absolute; z-index: 2; bottom: 14px; left: 50%; transform: translateX(-50%); color: var(--gold); text-decoration: none; font-size: 1.6rem; animation: bob 1.8s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translate(-50%, 6px); } }
+
+/* ---- buttons, in the style of the game's own */
+.button { display: inline-block; padding: 11px 22px; border-radius: 8px; font-weight: 800; text-decoration: none; letter-spacing: 0.02em;
+  color: var(--text); background: var(--panel); border: 2px solid var(--line); transition: transform 0.08s, filter 0.15s; }
+.button:hover, .button:focus-visible { filter: brightness(1.15); transform: translateY(-1px); }
+.button:active { transform: translateY(1px); }
+.button.primary { color: var(--ink); background: var(--gold); border-color: #17131f; box-shadow: inset 0 -4px 0 var(--gold-dark), inset 0 2px 0 #ffe08a; }
+.button.small { padding: 6px 12px; font-size: 0.88rem; font-weight: 700; }
+
+/* ---- sections */
+.section { padding: clamp(48px, 8vw, 96px) 20px; }
+.section.alt { background: #0f1328; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+.wrap.narrow { max-width: 760px; }
+.wrap.two { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 4vw, 48px); align-items: center; }
+.center { text-align: center; }
+section h2 { text-align: center; }
+.two h2 { text-align: left; }
+
+figure { margin: 0; }
+figure img, .gallery img { display: block; border: 2px solid var(--line); border-radius: 10px; image-rendering: pixelated; }
+figcaption { color: var(--dim); font-size: 0.9rem; margin-top: 8px; text-align: center; }
+
+.cards { list-style: none; padding: 0; margin: 28px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.cards li { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 20px; }
+.cards p { margin: 0; color: #c3c9e8; }
+
+.chapters { max-width: 760px; margin: 24px auto 0; padding-left: 1.4em; }
+.chapters li { margin-bottom: 0.7em; }
+.chapters li::marker { color: var(--gold); font-weight: 800; }
+
+.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 24px; }
+.gallery a:hover img, .gallery a:focus-visible img { border-color: var(--gold); }
+
+.downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 28px 0 20px; }
+.downloads article { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+.downloads article.yours { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(242, 179, 61, 0.18); }
+.downloads h3, .downloads p { flex-basis: 100%; margin: 0; }
+.downloads p { color: var(--dim); font-size: 0.92rem; margin-bottom: 6px; }
+.downloads .button.primary { flex-basis: 100%; text-align: center; }
+
+details { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+summary { cursor: pointer; font-weight: 700; color: #fff; }
+details p { margin: 10px 0 0; color: #c3c9e8; }
+
+.footer { text-align: center; padding: 36px 20px 48px; color: var(--dim); border-top: 2px solid var(--line); }
+.footer p { margin: 0.3em 0; }
+
+@media (max-width: 760px) {
+  .wrap.two { grid-template-columns: 1fr; }
+  .nav ul li:nth-child(-n+2) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .scroll-hint { animation: none; }
+}
