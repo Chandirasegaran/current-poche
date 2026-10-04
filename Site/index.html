@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current Pochu! | A free co-op power-cut adventure game for 1 to 4 players</title>
+  <meta name="description" content="Current Pochu! is a free pixel-art co-op adventure. The power is out in Minnalpatti on the night of the cricket final. Grab a torch, lead the minminis, and bring the lights back. Play solo or online with friends on Windows, Linux, Android or in your browser.">
+  <meta name="keywords" content="Current Pochu, co-op game, pixel art game, free indie game, online multiplayer, Tamil Nadu, adventure game, Segar Games">
+  <meta name="author" content="Segar Games">
+  <meta name="theme-color" content="#0b0d1c">
+  <link rel="canonical" href="https://chandirasegaran.github.io/current-poche/">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="assets/icon-256.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Current Pochu!">
+  <meta property="og:title" content="Current Pochu! A power-cut adventure for 1 to 4 friends">
+  <meta property="og:description" content="The power is out on the night of the cricket final. Grab a torch and bring the lights back. Free on Windows, Linux, Android and in your browser.">
+  <meta property="og:url" content="https://chandirasegaran.github.io/current-poche/">
+  <meta property="og:image" content="https://chandirasegaran.github.io/current-poche/assets/social-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Current Pochu! A power-cut adventure for 1 to 4 friends">
+  <meta name="twitter:description" content="A free pixel-art co-op adventure. Play solo or online on Windows, Linux, Android or in your browser.">
+  <meta name="twitter:image" content="https://chandirasegaran.github.io/current-poche/assets/social-card.jpg">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preload" as="image" href="assets/logo-3x.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Current Pochu!",
+    "description": "A free pixel-art co-op adventure for 1 to 4 players. The power is out in the town of Minnalpatti on the night of the cricket final, and the kids of the street follow the dead wires to find out why.",
+    "url": "https://chandirasegaran.github.io/current-poche/",
+    "image": "https://chandirasegaran.github.io/current-poche/assets/social-card.jpg",
+    "genre": ["Adventure", "Co-op", "Casual"],
+    "gamePlatform": ["Windows", "Linux", "Android", "Web browser"],
+    "operatingSystem": "Windows, Linux, Android",
+    "applicationCategory": "Game",
+    "playMode": ["SinglePlayer", "MultiPlayer", "CoOp"],
+    "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 4 },
+    "author": { "@type": "Organization", "name": "Segar Games" },
+    "publisher": { "@type": "Organization", "name": "Segar Games" },
+    "inLanguage": "en",
+    "license": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/InStock" },
+    "downloadUrl": "https://github.com/Chandirasegaran/current-poche/releases/latest"
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Is Current Pochu! free?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The game is free and open source, with no ads and no purchases." } },
+      { "@type": "Question", "name": "Can I play Current Pochu! alone?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Solo play needs no internet, and Battery the dog helps with the puzzles that need a second pair of paws." } },
+      { "@type": "Question", "name": "How do I play online with friends?",
+        "acceptedAnswer": { "@type": "Answer", "text": "One player chooses Host Online and gets a six-character code. Friends type the code on the title screen. Windows, Linux, Android and browser players can all join the same game." } },
+      { "@type": "Question", "name": "Why does Windows warn about an unknown publisher?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The installer is not code-signed, so Windows SmartScreen shows a warning. Choose More info, then Run anyway." } }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="hero">
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="#top"><img src="favicon.png" alt="" width="28" height="28"> Current Pochu!</a>
+      <ul>
+        <li><a href="#story">Story</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#screenshots">Screenshots</a></li>
+        <li><a href="#download">Download</a></li>
+      </ul>
+    </nav>
+
+    <div class="hero-text" id="top">
+      <h1><img src="assets/logo-3x.png" alt="Current Pochu!" width="570" height="240"></h1>
+      <p class="tagline">A power-cut adventure for 1 to 4 friends</p>
+      <p class="lede">It is the night of the cricket final, and every light in Minnalpatti has just gone out. Grab your torch. Follow the dead wires. Bring the lights back.</p>
+      <div class="cta">
+        <a class="button primary" id="primary-download" href="play/">Play in your browser</a>
+        <a class="button" href="#download">All downloads</a>
+      </div>
+      <p class="fine" id="primary-note">Free. No sign-up. Windows, Linux, Android and web.</p>
+    </div>
+    <a class="scroll-hint" href="#story" aria-label="Scroll to the story">&#9662;</a>
+  </header>
+
+  <main id="main">
+    <section id="story" class="section">
+      <div class="wrap two">
+        <div>
+          <h2>The night the current went</h2>
+          <p><strong>"Current pochu!"</strong> is what a whole Tamil street shouts in the same second the power dies. It is also the first thing that happens in this game.</p>
+          <p>Everyone blames Lineman Murugesan, but he swears the fuse is fine: the lines are <em>empty</em>, as if something drank the current with a straw. So the kids of Kamarajar Street pick up their torches and go to find out.</p>
+          <p>Along the way they keep meeting <strong>minminis</strong>, tiny spark-bugs carrying sips of electricity uphill, and something small, bright and frightened that is always one step ahead of them.</p>
+        </div>
+        <figure>
+          <img src="assets/shots/dialogue-small.jpg" alt="Lineman Murugesan telling a player that the power lines are empty" width="640" height="351" loading="lazy">
+          <figcaption>Lineman Murugesan has checked the fuse. Four times.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="features" class="section alt">
+      <div class="wrap">
+        <h2>What you do</h2>
+        <ul class="cards">
+          <li><h3>Light the town</h3><p>Shine your torch at the minminis and they follow you. Walk three to a dead streetlight and it wakes up for everyone.</p></li>
+          <li><h3>Play together or alone</h3><p>Up to four friends online with a join code, or solo with no internet. Battery the dog fills in when you need a second pair of paws.</p></li>
+          <li><h3>Six chapters, one story</h3><p>The town, the paddy fields, an abandoned cinema, a goods yard, a windy ridge and the old dam. Each one adds a new kind of puzzle.</p></li>
+          <li><h3>Nobody gets hurt</h3><p>No lives, no game over. Bandicoots scatter your minminis, ghosts send you back to the gate, and you try again.</p></li>
+          <li><h3>Eight kids to play</h3><p>Kavin, Abdul, Arul, Muthu, Yazhini, Mercy, Nila and Kayal. Pick one and your friends see who you are.</p></li>
+          <li><h3>Plays anywhere</h3><p>Windows, Linux, Android and the browser all join the same game. Keyboard, controller or touch.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="chapters" class="section">
+      <div class="wrap">
+        <h2>The chapters</h2>
+        <ol class="chapters">
+          <li><strong>Bazaar Blackout.</strong> Fourteen dead streetlights and four fuses to earn: lost glasses, a runaway goat, melting ice and six cricket balls.</li>
+          <li><strong>The Pump-set.</strong> A maze of bunds through flooded paddy, three sluice valves on a timer, and a scarecrow wearing something that is not his.</li>
+          <li><strong>Last Show at Raja Talkies.</strong> Three film reels, a projector, three mirrors, and a ghost that freezes in torchlight.</li>
+          <li><strong>Goods Yard.</strong> Three shunting engines that cannot see you, four signal lanterns, and a lever puzzle.</li>
+          <li><strong>Kaatthaadi Hills.</strong> Gusts of wind, crumbling ledges, and three windmills to set turning.</li>
+          <li><strong>The Powerhouse.</strong> One generator, eight minminis, and a small friend who needs to get home.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="screenshots" class="section alt">
+      <div class="wrap">
+        <h2>Screenshots</h2>
+        <div class="gallery">
+          <a href="assets/shots/town.png"><img src="assets/shots/town-small.jpg" alt="A player leading glowing minminis down Kamarajar Street at night" width="640" height="351" loading="lazy"></a>
+          <a href="assets/shots/cinema.png"><img src="assets/shots/cinema-small.jpg" alt="A projector beam bouncing off a mirror in the cinema yard" width="640" height="351" loading="lazy"></a>
+          <a href="assets/shots/map.png"><img src="assets/shots/map-small.jpg" alt="The in-game map showing the town, fields, cinema, goods yard, hills and dam" width="640" height="351" loading="lazy"></a>
+          <a href="assets/shots/title.png"><img src="assets/shots/title-small.jpg" alt="The title screen with the character picker" width="640" height="351" loading="lazy"></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="download" class="section">
+      <div class="wrap">
+        <h2>Download Current Pochu!</h2>
+        <p class="center">Free and open source. These links always fetch the latest release.</p>
+        <div class="downloads">
+          <article data-os="web">
+            <h3>Browser</h3>
+            <p>Nothing to install.</p>
+            <a class="button primary" href="play/">Play now</a>
+          </article>
+          <article data-os="windows">
+            <h3>Windows</h3>
+            <p>Windows 10 or 11, 64-bit.</p>
+            <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Setup.exe">Installer (.exe)</a>
+            <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu.msi">.msi</a>
+            <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Windows-portable.zip">Portable .zip</a>
+          </article>
+          <article data-os="linux">
+            <h3>Linux</h3>
+            <p>64-bit. The AppImage runs on any distribution.</p>
+            <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-x86_64.AppImage">AppImage</a>
+            <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/currentpochu_amd64.deb">.deb</a>
+            <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/currentpochu.x86_64.rpm">.rpm</a>
+            <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Linux-portable.zip">Portable .zip</a>
+          </article>
+          <article data-os="android">
+            <h3>Android</h3>
+            <p>Android 8.0 or newer.</p>
+            <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Android.apk">APK</a>
+          </article>
+        </div>
+        <p class="center fine">Older versions and checksums are on the <a href="https://github.com/Chandirasegaran/current-poche/releases">releases page</a>. The source is on <a href="https://github.com/Chandirasegaran/current-poche">GitHub</a>.</p>
+      </div>
+    </section>
+
+    <section id="faq" class="section alt">
+      <div class="wrap narrow">
+        <h2>Questions</h2>
+        <details><summary>Is it really free?</summary><p>Yes. Free and open source, with no ads and no purchases.</p></details>
+        <details><summary>Can I play alone?</summary><p>Yes. Solo play needs no internet. Battery the dog follows you, and a whistle tells him to stay put when a puzzle needs something heavy in one place.</p></details>
+        <details><summary>How do I play online with friends?</summary><p>One of you chooses <strong>Host Online</strong> and gets a six-character code. Everyone else types that code on the title screen. Windows, Linux, Android and browser players can all be in the same game.</p></details>
+        <details><summary>Windows says "unknown publisher". Is that normal?</summary><p>Yes. The installer is not code-signed, so Windows SmartScreen warns about it. Choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></details>
+        <details><summary>How do I install the Android APK?</summary><p>Download it on your phone and open it. Android will ask you to allow installing from that source the first time.</p></details>
+        <details><summary>Does it save my progress?</summary><p>Yes, on the device of whoever hosts, and guests keep a copy too, so anyone in the group can host next time.</p></details>
+        <details><summary>What are the controls?</summary><p>WASD or arrow keys to move, E to talk and use, Q to call Battery, M for the map, Esc for the menu. Every key can be changed in the settings. Controllers and touch screens work too.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Current Pochu!</strong> A Segar Games story.</p>
+    <p><a href="play/">Play in browser</a> · <a href="https://github.com/Chandirasegaran/current-poche/releases/latest">Latest release</a> · <a href="https://github.com/Chandirasegaran/current-poche">Source code</a></p>
+  </footer>
+
+  <script type="module" src="scene.js"></script>
+  <script>
+    // Offer the right download first for the visitor's device. Every option
+    // is still listed below, and these are plain links, so nothing here is
+    // needed for the page to work.
+    (function () {
+      var base = "https://github.com/Chandirasegaran/current-poche/releases/latest/download/";
+      var agent = navigator.userAgent;
+      var pick = /Android/i.test(agent) ? ["android", "Download for Android", base + "CurrentPochu-Android.apk"]
+        : /Windows/i.test(agent) ? ["windows", "Download for Windows", base + "CurrentPochu-Setup.exe"]
+        : /Linux/i.test(agent) ? ["linux", "Download for Linux", base + "CurrentPochu-x86_64.AppImage"]
+        : null;
+      if (!pick) return;
+      var button = document.getElementById("primary-download");
+      button.textContent = pick[1];
+      button.href = pick[2];
+      document.getElementById("primary-note").innerHTML =
+        'Free. No sign-up. Or <a href="play/">play in your browser</a>.';
+      var card = document.querySelector('[data-os="' + pick[0] + '"]');
+      if (card) card.classList.add("yours");
+    })();
+  </script>
+</body>
+</html>

@@ -6,7 +6,9 @@ Unity 6.6 with Netcode for GameObjects. The story and full design are in
 
 ## Playing
 
-**Play in your browser:** https://chandirasegaran.github.io/current-poche/
+**Website and downloads:** https://chandirasegaran.github.io/current-poche/
+
+**Play in your browser:** https://chandirasegaran.github.io/current-poche/play/
 
 Download an installer from the [Releases](https://github.com/Chandirasegaran/current-poche/releases) page.
 
@@ -72,8 +74,12 @@ game starts. **ERASE SAVE** on the title screen starts the story over.
   well as Linux and Windows; the packaging script picks up whichever exist. The Android
   package name is `com.segar.currentpochu`. The APK is signed with Unity's debug key, which
   is fine for installing by hand; publishing on Google Play needs your own keystore.
-- The browser version is served by GitHub Pages from the `gh-pages` branch, which holds
-  only the unzipped contents of `CurrentPochu-<version>-Web.zip`. To update it, replace
-  those files on that branch and push.
+- `Site/` is the website: a static landing page (plain HTML, CSS and one script, with a 3D
+  street built from the game's art using three.js). `Packaging/deploy-site.sh <version>`
+  publishes it to GitHub Pages on the `gh-pages` branch, with the web build under `/play/`.
+- Each release carries every download twice: once with the version in the name, and once
+  without (`CurrentPochu-Setup.exe` and so on). The website's buttons link to the
+  version-less names through `releases/latest/download/`, so they always fetch the newest
+  release. Upload everything in `Builds/Installers` when making a release.
 - Command-line switches for a built game: `-solo`, `-host`, `-join <code>`,
   `-profile <name>` (use different profiles to run two copies on one computer).

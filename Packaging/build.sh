@@ -81,5 +81,16 @@ APK=$(ls -t $ROOT/Builds/Android/*.apk 2>/dev/null | head -1 || true)
 (cd $WIN && zip -qr "$OUT/CurrentPochu-${VERSION}-Windows-portable.zip" .)
 (cd $STAGE/opt/currentpochu && zip -qr "$OUT/CurrentPochu-${VERSION}-Linux-portable.zip" .)
 
+# ---- the same files again under names without the version, so the website's
+#      download buttons (github.com/.../releases/latest/download/<name>) never change
+ln "$OUT/CurrentPochu-${VERSION}-Setup.exe" "$OUT/CurrentPochu-Setup.exe"
+ln "$OUT/CurrentPochu-${VERSION}.msi" "$OUT/CurrentPochu.msi"
+ln "$OUT/currentpochu_${VERSION}_amd64.deb" "$OUT/currentpochu_amd64.deb"
+ln "$OUT/currentpochu-${VERSION}-1.x86_64.rpm" "$OUT/currentpochu.x86_64.rpm"
+ln "$OUT/CurrentPochu-${VERSION}-x86_64.AppImage" "$OUT/CurrentPochu-x86_64.AppImage"
+ln "$OUT/CurrentPochu-${VERSION}-Windows-portable.zip" "$OUT/CurrentPochu-Windows-portable.zip"
+ln "$OUT/CurrentPochu-${VERSION}-Linux-portable.zip" "$OUT/CurrentPochu-Linux-portable.zip"
+[ -f "$OUT/CurrentPochu-${VERSION}-Android.apk" ] && ln "$OUT/CurrentPochu-${VERSION}-Android.apk" "$OUT/CurrentPochu-Android.apk"
+
 (cd "$OUT" && sha256sum * > SHA256SUMS.txt)
 ls -la "$OUT"
