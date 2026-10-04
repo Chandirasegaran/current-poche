@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
-  <title>Current Pochu!</title>
+  <title>Play Current Pochu! in your browser | Free co-op pixel-art adventure</title>
+  <meta name="description" content="Play Current Pochu! right here, with nothing to install. Go solo, or host an online game and share the code with up to three friends.">
+  <link rel="canonical" href="https://chandirasegaran.github.io/current-poche/play/">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <meta property="og:title" content="Play Current Pochu! in your browser">
+  <meta property="og:description" content="A free pixel-art co-op adventure about a power cut in a Tamil town. Nothing to install.">
+  <meta property="og:url" content="https://chandirasegaran.github.io/current-poche/play/">
+  <meta property="og:image" content="https://chandirasegaran.github.io/current-poche/assets/social-card.jpg">
   <style>
     html, body { margin: 0; height: 100%; background: #0b0d1c; overflow: hidden; }
     #unity-canvas { display: block; width: 100vw; height: 100vh; background: #0b0d1c; }
@@ -15,6 +22,7 @@
 </head>
 <body>
   <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <noscript><p style="color:#ffdb6b;font:16px monospace;padding:24px">Current Pochu! needs JavaScript to run in the browser. You can also <a style="color:#fff" href="../#download">download the game for Windows, Linux or Android</a>.</p></noscript>
   <div id="loading"><div>CURRENT POCHU!</div><div id="bar"><div id="fill"></div></div></div>
   <script src="Build/WebGL.loader.js"></script>
   <script>

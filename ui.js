@@ -70,6 +70,7 @@
     var who = talk[turn % talk.length];
     turn++;
     face.src = "assets/sprites/" + who[0] + ".png";
+    face.alt = who[1];
     name.textContent = who[1];
     if (calm) { line.textContent = who[2]; return; }
     var shown = 0;
@@ -111,7 +112,7 @@
       document.querySelectorAll(".thumbs a").forEach(function (other) { other.classList.toggle("on", other === thumb); });
     });
   });
-  if (big) big.addEventListener("click", function () { box.querySelector("img").src = big.src; box.hidden = false; });
+  if (big) big.addEventListener("click", function () { box.querySelector("img").src = big.src; box.querySelector("img").alt = big.alt; box.hidden = false; });
   box.addEventListener("click", function () { box.hidden = true; });
   document.addEventListener("keydown", function (event) { if (event.key === "Escape") box.hidden = true; });
 
