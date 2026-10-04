@@ -34,7 +34,7 @@ public class GameUI : MonoBehaviour
     CanvasScaler scaler;
     GameObject title, hud, dialogue, pause, toast;
     Button soloButton, hostButton, joinButton;
-    GameObject eraseButton, settings, credits, touchControls, quitButton;
+    GameObject eraseButton, settings, credits, help, touchControls, quitButton;
     RectTransform stickBase, stickKnob;
     TouchScreenKeyboard softKeyboard;
     GameObject card, summary, map, resumeButton;
@@ -100,10 +100,11 @@ public class GameUI : MonoBehaviour
         UpdateTouch(keys);
         if (Controls.Tapped(Key.F11)) GameSettings.Fullscreen = !GameSettings.Fullscreen;
         if (settings.activeSelf) UpdateSettings(keys);
-        if (Controls.MenuPressed() && (settings.activeSelf || credits.activeSelf || map.activeSelf))
+        if (Controls.MenuPressed() && (settings.activeSelf || credits.activeSelf || help.activeSelf || map.activeSelf))
         {
             settings.SetActive(false);
             credits.SetActive(false);
+            help.SetActive(false);
             map.SetActive(false);
             return;
         }
@@ -163,7 +164,7 @@ public class GameUI : MonoBehaviour
             if (softKeyboard.status != TouchScreenKeyboard.Status.Visible) softKeyboard = null;
         }
 
-        if (!usable || settings.activeSelf || credits.activeSelf) return;
+        if (!usable || settings.activeSelf || credits.activeSelf || help.activeSelf) return;
         if (Keyboard.current != null && softKeyboard == null) TypeCode(Keyboard.current);
         if (Controls.Tapped(Key.Backspace) && codeEntry.Length > 0)
             codeEntry = codeEntry[..^1];
@@ -358,6 +359,7 @@ public class GameUI : MonoBehaviour
             }
         }
 
+        if (map.activeSelf) card.SetActive(false); // don't cover the map
         if (!card.activeSelf) return;
         cardTimer -= Time.deltaTime;
         cardFade.alpha = Mathf.Clamp01(Mathf.Min(cardTimer, 4f - cardTimer) * 2f); // fade in, hold, fade out
@@ -538,6 +540,25 @@ public class GameUI : MonoBehaviour
             top, top, new Vector2(0, -26), Pale);
         MakeButton(page, "BACK", top, new Vector2(0, -142), new Vector2(104, 17), () => credits.SetActive(false));
         credits.SetActive(false);
+
+        // How to play: the controls and the one idea the game is built on.
+        help = Backdrop(canvas, "Help");
+        var sheet = Box(help.transform, "panel_9s", centre, centre, Vector2.zero, new Vector2(300, 196)).transform;
+        Label(sheet, "HOW TO PLAY", top, top, new Vector2(0, -8), Yellow);
+        Label(sheet,
+            "Move:  WASD or the arrow keys\n" +
+            "Talk, pick up, use, throw:  E\n" +
+            "Battery, stay or come:  Q\n" +
+            "Map:  M        Task list:  Tab\n" +
+            "Say something:  1  2  3  4\n" +
+            "Menu:  Esc     Fullscreen:  F11\n" +
+            "A controller or a touch screen works too.\n\n" +
+            "Shine your torch at the glowing minminis and\n" +
+            "they follow you. Lead 3 to a dead streetlight.\n" +
+            "Bandicoots scatter them: point the torch at those.",
+            top, top, new Vector2(0, -26), Pale, 0, true);
+        MakeButton(sheet, "BACK", top, new Vector2(0, -170), new Vector2(104, 17), () => help.SetActive(false));
+        help.SetActive(false);
     }
 
     void Interact(Interactable target, PlayerController player)
@@ -663,6 +684,7 @@ public class GameUI : MonoBehaviour
             if (TouchScreenKeyboard.isSupported) softKeyboard = TouchScreenKeyboard.Open(codeEntry, TouchScreenKeyboardType.Default, false);
         });
         MakeButton(title.transform, "SETTINGS", Vector2.zero, new Vector2(58, 50), new Vector2(104, 20), () => settings.SetActive(true));
+        MakeButton(title.transform, "HOW TO PLAY", Vector2.zero, new Vector2(58, 74), new Vector2(104, 20), () => help.SetActive(true));
         MakeButton(title.transform, "CREDITS", Vector2.zero, new Vector2(58, 26), new Vector2(104, 20), () => credits.SetActive(true));
 
         // Choose who to play as: four boys on the top row, four girls below.
