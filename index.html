@@ -25,6 +25,7 @@
   <meta name="twitter:description" content="A free pixel-art co-op adventure. Play solo or online on Windows, Linux, Android or in your browser.">
   <meta name="twitter:image" content="https://chandirasegaran.github.io/current-poche/assets/social-card.jpg">
 
+  <link rel="preload" href="assets/fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <link rel="preload" as="image" href="assets/logo-3x.png">
 
@@ -69,114 +70,209 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
+  <canvas id="sparks" aria-hidden="true"></canvas>
 
-  <header class="hero">
+  <!-- Six streetlights down the side: one lights up for each part of the page you reach. -->
+  <nav class="lamps" aria-label="Sections">
+    <a href="#top" data-for="top" title="Start"></a>
+    <a href="#story" data-for="story" title="Story"></a>
+    <a href="#play" data-for="play" title="How it plays"></a>
+    <a href="#chapters" data-for="chapters" title="Chapters"></a>
+    <a href="#cast" data-for="cast" title="The cast"></a>
+    <a href="#download" data-for="download" title="Download"></a>
+  </nav>
+
+  <header class="hero" id="top">
     <canvas id="scene" aria-hidden="true"></canvas>
     <nav class="nav" aria-label="Main">
       <a class="brand" href="#top"><img src="favicon.png" alt="" width="28" height="28"> Current Pochu!</a>
       <ul>
         <li><a href="#story">Story</a></li>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#screenshots">Screenshots</a></li>
-        <li><a href="#download">Download</a></li>
+        <li><a href="#chapters">Chapters</a></li>
+        <li><a href="#cast">Cast</a></li>
+        <li><a class="nav-cta" href="#download">Download</a></li>
       </ul>
     </nav>
 
-    <div class="hero-text" id="top">
+    <div class="hero-text">
       <h1><img src="assets/logo-3x.png" alt="Current Pochu!" width="570" height="240"></h1>
       <p class="tagline">A power-cut adventure for 1 to 4 friends</p>
       <p class="lede">It is the night of the cricket final, and every light in Minnalpatti has just gone out. Grab your torch. Follow the dead wires. Bring the lights back.</p>
       <div class="cta">
-        <a class="button primary" id="primary-download" href="play/">Play in your browser</a>
-        <a class="button" href="#download">All downloads</a>
+        <a class="button primary big" id="primary-download" href="play/">Play in your browser</a>
+        <a class="button big" href="#download">All downloads</a>
       </div>
       <p class="fine" id="primary-note">Free. No sign-up. Windows, Linux, Android and web.</p>
     </div>
     <a class="scroll-hint" href="#story" aria-label="Scroll to the story">&#9662;</a>
   </header>
 
+  <ul class="stats" aria-label="At a glance">
+    <li><b>6</b><span>chapters</span></li>
+    <li><b>1&ndash;4</b><span>players</span></li>
+    <li><b>8</b><span>kids to play</span></li>
+    <li><b>4</b><span>platforms</span></li>
+    <li><b>0</b><span>rupees</span></li>
+  </ul>
+
   <main id="main">
+    <!-- STORY: told the way the game tells it, in a dialogue box -->
     <section id="story" class="section">
-      <div class="wrap two">
-        <div>
-          <h2>The night the current went</h2>
-          <p><strong>"Current pochu!"</strong> is what a whole Tamil street shouts in the same second the power dies. It is also the first thing that happens in this game.</p>
-          <p>Everyone blames Lineman Murugesan, but he swears the fuse is fine: the lines are <em>empty</em>, as if something drank the current with a straw. So the kids of Kamarajar Street pick up their torches and go to find out.</p>
-          <p>Along the way they keep meeting <strong>minminis</strong>, tiny spark-bugs carrying sips of electricity uphill, and something small, bright and frightened that is always one step ahead of them.</p>
+      <div class="wrap">
+        <p class="kicker">7:59 PM, Kamarajar Street</p>
+        <h2>The night the current went</h2>
+        <div class="story">
+          <div class="story-text reveal">
+            <p><strong>"Current pochu!"</strong> is what a whole Tamil street shouts in the same second the power dies. It is also the first thing that happens in this game.</p>
+            <p>Everyone blames Lineman Murugesan, but he swears the fuse is fine: the lines are <em>empty</em>, as if something drank the current with a straw. So the kids of Kamarajar Street pick up their torches and go to find out.</p>
+            <p>Along the way they keep meeting <strong>minminis</strong>, tiny spark-bugs carrying sips of electricity uphill, and something small, bright and frightened that is always one step ahead of them.</p>
+          </div>
+          <div class="dialogue reveal" aria-live="off">
+            <div class="screen"><img src="assets/shots/town-small.jpg" alt="A kid leading glowing minminis down a dark street past a row of houses" width="640" height="351" loading="lazy"></div>
+            <div class="talk">
+              <img class="portrait" id="talk-face" src="assets/sprites/lineman.png" alt="" width="64" height="108">
+              <div>
+                <p class="speaker" id="talk-name">Lineman Murugesan</p>
+                <p class="line" id="talk-line">The lines are empty, thambi. Like somebody drank the current with a straw.</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <figure>
-          <img src="assets/shots/dialogue-small.jpg" alt="Lineman Murugesan telling a player that the power lines are empty" width="640" height="351" loading="lazy">
-          <figcaption>Lineman Murugesan has checked the fuse. Four times.</figcaption>
-        </figure>
       </div>
     </section>
 
-    <section id="features" class="section alt">
+    <div class="skyline" aria-hidden="true"></div>
+
+    <!-- HOW IT PLAYS -->
+    <section id="play" class="section alt">
       <div class="wrap">
-        <h2>What you do</h2>
-        <ul class="cards">
-          <li><h3>Light the town</h3><p>Shine your torch at the minminis and they follow you. Walk three to a dead streetlight and it wakes up for everyone.</p></li>
-          <li><h3>Play together or alone</h3><p>Up to four friends online with a join code, or solo with no internet. Battery the dog fills in when you need a second pair of paws.</p></li>
-          <li><h3>Six chapters, one story</h3><p>The town, the paddy fields, an abandoned cinema, a goods yard, a windy ridge and the old dam. Each one adds a new kind of puzzle.</p></li>
-          <li><h3>Nobody gets hurt</h3><p>No lives, no game over. Bandicoots scatter your minminis, ghosts send you back to the gate, and you try again.</p></li>
-          <li><h3>Eight kids to play</h3><p>Kavin, Abdul, Arul, Muthu, Yazhini, Mercy, Nila and Kayal. Pick one and your friends see who you are.</p></li>
-          <li><h3>Plays anywhere</h3><p>Windows, Linux, Android and the browser all join the same game. Keyboard, controller or touch.</p></li>
+        <p class="kicker">How it plays</p>
+        <h2>A torch, a town, and a lot of small lights</h2>
+
+        <div class="loop">
+          <article class="step reveal"><span class="num">1</span><img src="assets/sprites/kavin_idle.png" alt="" width="64" height="76"><h3>Shine</h3><p>Point your torch at the glowing minminis. They can't resist it.</p></article>
+          <article class="step reveal"><span class="num">2</span><img class="glowdot" src="assets/sprites/glow.png" alt="" width="64" height="64"><h3>Lead</h3><p>They follow you through the dark. Watch out: bandicoots love to scatter them.</p></article>
+          <article class="step reveal"><span class="num">3</span><img src="assets/sprites/streetlight_on.png" alt="" width="32" height="112"><h3>Light</h3><p>Walk three to a dead streetlight and it wakes up, for everyone, for good.</p></article>
+        </div>
+
+        <ul class="perks">
+          <li class="reveal"><h3>Together or alone</h3><p>Up to four friends online with a join code, or solo with no internet. Battery the dog fills in when a puzzle needs a second pair of paws.</p></li>
+          <li class="reveal"><h3>Nobody gets hurt</h3><p>No lives, no game over. Ghosts send you back to the gate, trains toot you off the track, and you try again.</p></li>
+          <li class="reveal"><h3>Plays anywhere</h3><p>Windows, Linux, Android and the browser all join the same game. Keyboard, controller or touch.</p></li>
+          <li class="reveal"><h3>A whole night of story</h3><p>Six chapters, four side-jobs, six hidden kolams, and an ending worth staying up for.</p></li>
         </ul>
       </div>
     </section>
 
+    <div class="skyline flip" aria-hidden="true"></div>
+
+    <!-- CHAPTERS: pick one on the game's own map -->
     <section id="chapters" class="section">
       <div class="wrap">
-        <h2>The chapters</h2>
-        <ol class="chapters">
-          <li><strong>Bazaar Blackout.</strong> Fourteen dead streetlights and four fuses to earn: lost glasses, a runaway goat, melting ice and six cricket balls.</li>
-          <li><strong>The Pump-set.</strong> A maze of bunds through flooded paddy, three sluice valves on a timer, and a scarecrow wearing something that is not his.</li>
-          <li><strong>Last Show at Raja Talkies.</strong> Three film reels, a projector, three mirrors, and a ghost that freezes in torchlight.</li>
-          <li><strong>Goods Yard.</strong> Three shunting engines that cannot see you, four signal lanterns, and a lever puzzle.</li>
-          <li><strong>Kaatthaadi Hills.</strong> Gusts of wind, crumbling ledges, and three windmills to set turning.</li>
-          <li><strong>The Powerhouse.</strong> One generator, eight minminis, and a small friend who needs to get home.</li>
-        </ol>
+        <p class="kicker">Chapter select</p>
+        <h2>One night, six places</h2>
+        <div class="world">
+          <div class="map reveal">
+            <img src="assets/world-map.png" alt="Map of the game world: the town in the middle, fields to the east, the cinema to the north, the goods yard, hills and dam to the west" width="298" height="136">
+            <button class="spot" data-chapter="1" style="left:29%;top:43%;width:43%;height:56%" aria-label="Chapter 1: the town"></button>
+            <button class="spot" data-chapter="2" style="left:72.5%;top:50%;width:27%;height:42%" aria-label="Chapter 2: the fields"></button>
+            <button class="spot" data-chapter="3" style="left:42%;top:3%;width:16.5%;height:25%" aria-label="Chapter 3: the cinema"></button>
+            <button class="spot" data-chapter="4" style="left:0.7%;top:75%;width:26.5%;height:24%" aria-label="Chapter 4: the goods yard"></button>
+            <button class="spot" data-chapter="5" style="left:0.7%;top:20%;width:25.5%;height:54%" aria-label="Chapter 5: the hills"></button>
+            <button class="spot" data-chapter="6" style="left:0.7%;top:2%;width:25.5%;height:17%" aria-label="Chapter 6: the dam"></button>
+          </div>
+          <ol class="chapter-list">
+            <li data-chapter="1"><img src="assets/sprites/transformer.png" alt="" width="80" height="120"><div><span class="badge">Chapter 1</span><h3>Bazaar Blackout</h3><p>Fourteen dead streetlights and four fuses to earn: lost glasses, a runaway goat, melting ice and six cricket balls.</p><p class="toy">New: minminis, bandicoots, fuses</p></div></li>
+            <li data-chapter="2"><img src="assets/sprites/pump_on.png" alt="" width="128" height="112"><div><span class="badge">Chapter 2</span><h3>The Pump-set</h3><p>A maze of bunds through flooded paddy, three sluice valves on a timer, and a scarecrow wearing something that is not his.</p><p class="toy">New: timed valves, the bund maze</p></div></li>
+            <li data-chapter="3"><img src="assets/sprites/projector_on.png" alt="" width="96" height="112"><div><span class="badge">Chapter 3</span><h3>Last Show at Raja Talkies</h3><p>Three film reels, a projector, three mirrors to aim its beam, and a ghost that freezes in torchlight.</p><p class="toy">New: light beams, mirrors, ghosts</p></div></li>
+            <li data-chapter="4"><img src="assets/sprites/engine.png" alt="" width="196" height="92"><div><span class="badge">Chapter 4</span><h3>Goods Yard</h3><p>Three shunting engines that cannot see you, four signal lanterns scattered between the tracks, and a lever puzzle.</p><p class="toy">New: trains, levers</p></div></li>
+            <li data-chapter="5"><img src="assets/sprites/windmill_tower.png" alt="" width="52" height="172"><div><span class="badge">Chapter 5</span><h3>Kaatthaadi Hills</h3><p>Gusts of wind, crumbling ledges, and three windmills to set turning. A small bright friend walks up with you.</p><p class="toy">New: wind, a companion</p></div></li>
+            <li data-chapter="6"><img src="assets/sprites/powerhouse_on.png" alt="" width="224" height="144"><div><span class="badge">Chapter 6</span><h3>The Powerhouse</h3><p>One generator, eight minminis, and somebody who needs to get home. Then the sun comes up.</p><p class="toy">New: the ending</p></div></li>
+          </ol>
+        </div>
       </div>
     </section>
 
-    <section id="screenshots" class="section alt">
+    <!-- CAST -->
+    <section id="cast" class="section alt">
       <div class="wrap">
-        <h2>Screenshots</h2>
-        <div class="gallery">
-          <a href="assets/shots/town.png"><img src="assets/shots/town-small.jpg" alt="A player leading glowing minminis down Kamarajar Street at night" width="640" height="351" loading="lazy"></a>
+        <p class="kicker">The cast</p>
+        <h2>Pick your kid</h2>
+        <ul class="kids">
+          <li><i style="--walk:url(assets/sprites/kavin_walk.png)"></i><span>Kavin</span></li>
+          <li><i style="--walk:url(assets/sprites/abdul_walk.png)"></i><span>Abdul</span></li>
+          <li><i style="--walk:url(assets/sprites/arul_walk.png)"></i><span>Arul</span></li>
+          <li><i style="--walk:url(assets/sprites/muthu_walk.png)"></i><span>Muthu</span></li>
+          <li><i style="--walk:url(assets/sprites/yazhini_walk.png)"></i><span>Yazhini</span></li>
+          <li><i style="--walk:url(assets/sprites/mercy_walk.png)"></i><span>Mercy</span></li>
+          <li><i style="--walk:url(assets/sprites/nila_walk.png)"></i><span>Nila</span></li>
+          <li><i style="--walk:url(assets/sprites/kayal_walk.png)"></i><span>Kayal</span></li>
+        </ul>
+
+        <h2 class="second">Meet the town</h2>
+        <ul class="town">
+          <li class="reveal"><img src="assets/sprites/paati.png" alt="" width="64" height="108"><h3>Paati</h3><p class="role">Your grandmother</p><q>That dog eats more than you do. Let him work for it.</q></li>
+          <li class="reveal"><img src="assets/sprites/lineman.png" alt="" width="64" height="108"><h3>Lineman Murugesan</h3><p class="role">Blamed for everything</p><q>It is NOT the fuse. Well. It is ALSO the fuse.</q></li>
+          <li class="reveal"><img src="assets/sprites/teamaster.png" alt="" width="64" height="108"><h3>Tea Master Selvam</h3><p class="role">Runs on firewood</p><q>The first tea is free. The second is full price.</q></li>
+          <li class="reveal"><img src="assets/sprites/chairman.png" alt="" width="64" height="108"><h3>The Chairman</h3><p class="role">Has a speech at nine</p><q>How will people see my face in the dark? ...Don't answer that.</q></li>
+          <li class="reveal"><img src="assets/sprites/dog_idle.png" alt="" width="80" height="56"><h3>Battery</h3><p class="role">A very good dog</p><q>Woof.</q></li>
+          <li class="reveal"><img class="glowing" src="assets/sprites/minnal.png" alt="" width="48" height="52"><h3>Minnal</h3><p class="role">Lost, and a long way from home</p><q>...</q></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SCREENSHOTS -->
+    <section id="screenshots" class="section">
+      <div class="wrap">
+        <p class="kicker">Screenshots</p>
+        <h2>See it running</h2>
+        <div class="viewer reveal">
+          <img id="big-shot" src="assets/shots/town.png" alt="A player leading glowing minminis down Kamarajar Street at night" width="1280" height="702" loading="lazy">
+        </div>
+        <div class="thumbs">
+          <a href="assets/shots/town.png" class="on"><img src="assets/shots/town-small.jpg" alt="A player leading glowing minminis down Kamarajar Street at night" width="640" height="351" loading="lazy"></a>
           <a href="assets/shots/cinema.png"><img src="assets/shots/cinema-small.jpg" alt="A projector beam bouncing off a mirror in the cinema yard" width="640" height="351" loading="lazy"></a>
-          <a href="assets/shots/map.png"><img src="assets/shots/map-small.jpg" alt="The in-game map showing the town, fields, cinema, goods yard, hills and dam" width="640" height="351" loading="lazy"></a>
+          <a href="assets/shots/dialogue.png"><img src="assets/shots/dialogue-small.jpg" alt="Lineman Murugesan explaining that the power lines are empty" width="640" height="351" loading="lazy"></a>
+          <a href="assets/shots/map.png"><img src="assets/shots/map-small.jpg" alt="The in-game map of the whole world" width="640" height="351" loading="lazy"></a>
           <a href="assets/shots/title.png"><img src="assets/shots/title-small.jpg" alt="The title screen with the character picker" width="640" height="351" loading="lazy"></a>
         </div>
       </div>
     </section>
 
-    <section id="download" class="section">
+    <div class="skyline" aria-hidden="true"></div>
+
+    <!-- DOWNLOAD -->
+    <section id="download" class="section alt">
       <div class="wrap">
+        <p class="kicker">Free, forever</p>
         <h2>Download Current Pochu!</h2>
-        <p class="center">Free and open source. These links always fetch the latest release.</p>
+        <p class="center release" id="release-line">These buttons always fetch the latest release.</p>
         <div class="downloads">
-          <article data-os="web">
+          <article data-os="web" class="reveal">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v8H2zM6 12h4v1H6zM4 13h8v1H4z"/></svg>
             <h3>Browser</h3>
             <p>Nothing to install.</p>
             <a class="button primary" href="play/">Play now</a>
           </article>
-          <article data-os="windows">
+          <article data-os="windows" class="reveal">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h5v5H2zM8 3h6v5H8zM2 9h5v5H2zM8 9h6v5H8z"/></svg>
             <h3>Windows</h3>
             <p>Windows 10 or 11, 64-bit.</p>
             <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Setup.exe">Installer (.exe)</a>
             <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu.msi">.msi</a>
             <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Windows-portable.zip">Portable .zip</a>
           </article>
-          <article data-os="linux">
+          <article data-os="linux" class="reveal">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1h4v3h1v4h2v5h-2v2H9v-2H7v2H5v-2H3V8h2V4h1z"/></svg>
             <h3>Linux</h3>
-            <p>64-bit. The AppImage runs on any distribution.</p>
+            <p>64-bit. The AppImage runs anywhere.</p>
             <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-x86_64.AppImage">AppImage</a>
             <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/currentpochu_amd64.deb">.deb</a>
             <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/currentpochu.x86_64.rpm">.rpm</a>
             <a class="button small" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Linux-portable.zip">Portable .zip</a>
           </article>
-          <article data-os="android">
+          <article data-os="android" class="reveal">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h1v12h-1v1H5v-1H4V2h1zM6 3v9h4V3zM7 13h2v1H7z"/></svg>
             <h3>Android</h3>
             <p>Android 8.0 or newer.</p>
             <a class="button primary" href="https://github.com/Chandirasegaran/current-poche/releases/latest/download/CurrentPochu-Android.apk">APK</a>
@@ -186,9 +282,10 @@
       </div>
     </section>
 
-    <section id="faq" class="section alt">
+    <section id="faq" class="section">
       <div class="wrap narrow">
-        <h2>Questions</h2>
+        <p class="kicker">Questions</p>
+        <h2>Before you start</h2>
         <details><summary>Is it really free?</summary><p>Yes. Free and open source, with no ads and no purchases.</p></details>
         <details><summary>Can I play alone?</summary><p>Yes. Solo play needs no internet. Battery the dog follows you, and a whistle tells him to stay put when a puzzle needs something heavy in one place.</p></details>
         <details><summary>How do I play online with friends?</summary><p>One of you chooses <strong>Host Online</strong> and gets a six-character code. Everyone else types that code on the title screen. Windows, Linux, Android and browser players can all be in the same game.</p></details>
@@ -198,6 +295,15 @@
         <details><summary>What are the controls?</summary><p>WASD or arrow keys to move, E to talk and use, Q to call Battery, M for the map, Esc for the menu. Every key can be changed in the settings. Controllers and touch screens work too.</p></details>
       </div>
     </section>
+
+    <section class="finale">
+      <img class="glowing" src="assets/sprites/minnal.png" alt="" width="72" height="78">
+      <h2>Somebody small is waiting to go home.</h2>
+      <div class="cta">
+        <a class="button primary big" href="play/">Play in your browser</a>
+        <a class="button big" href="#download">Download</a>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">
@@ -205,27 +311,9 @@
     <p><a href="play/">Play in browser</a> · <a href="https://github.com/Chandirasegaran/current-poche/releases/latest">Latest release</a> · <a href="https://github.com/Chandirasegaran/current-poche">Source code</a></p>
   </footer>
 
+  <div class="lightbox" id="lightbox" hidden><img alt=""></div>
+
   <script type="module" src="scene.js"></script>
-  <script>
-    // Offer the right download first for the visitor's device. Every option
-    // is still listed below, and these are plain links, so nothing here is
-    // needed for the page to work.
-    (function () {
-      var base = "https://github.com/Chandirasegaran/current-poche/releases/latest/download/";
-      var agent = navigator.userAgent;
-      var pick = /Android/i.test(agent) ? ["android", "Download for Android", base + "CurrentPochu-Android.apk"]
-        : /Windows/i.test(agent) ? ["windows", "Download for Windows", base + "CurrentPochu-Setup.exe"]
-        : /Linux/i.test(agent) ? ["linux", "Download for Linux", base + "CurrentPochu-x86_64.AppImage"]
-        : null;
-      if (!pick) return;
-      var button = document.getElementById("primary-download");
-      button.textContent = pick[1];
-      button.href = pick[2];
-      document.getElementById("primary-note").innerHTML =
-        'Free. No sign-up. Or <a href="play/">play in your browser</a>.';
-      var card = document.querySelector('[data-os="' + pick[0] + '"]');
-      if (card) card.classList.add("yours");
-    })();
-  </script>
+  <script src="ui.js" defer></script>
 </body>
 </html>
