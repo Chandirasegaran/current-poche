@@ -200,6 +200,7 @@ main, .stats, .footer { position: relative; z-index: 1; }
 .downloads article.yours { border-color: var(--gold); box-shadow: var(--hard), 0 0 30px rgba(242, 179, 61, 0.25); }
 .downloads article.yours h3::after { content: "your device"; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); background: var(--spark); padding: 1px 6px; margin-left: 8px; vertical-align: middle; }
 .downloads svg { width: 44px; height: 44px; fill: var(--gold); shape-rendering: crispEdges; flex-basis: 100%; }
+.downloads svg .cut { fill: var(--panel); } /* eyes and bellies: holes showing the card behind */
 .downloads h3, .downloads p { flex-basis: 100%; margin: 0; }
 .downloads p { color: var(--dim); font-size: 0.92rem; margin-bottom: 6px; }
 .downloads .button.primary { flex-basis: 100%; text-align: center; }
