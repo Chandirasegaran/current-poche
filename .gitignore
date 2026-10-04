@@ -9,3 +9,4 @@
 *.slnx
 __pycache__/
 /Assets/Resources/PerformanceTestRun*
+/.utmp/
