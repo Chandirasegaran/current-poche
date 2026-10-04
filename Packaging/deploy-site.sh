@@ -15,6 +15,8 @@ git clone -q --branch gh-pages --depth 1 "$(git remote get-url origin)" "$WORK"
 find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp -a Site/. "$WORK/"
 mkdir -p "$WORK/play" && unzip -q "$ZIP" -d "$WORK/play"
+# the play page itself comes from the repo, so its title and description can change without a rebuild
+sed "s/productVersion: \"[^\"]*\"/productVersion: \"$VERSION\"/" Packaging/web/index.html > "$WORK/play/index.html"
 touch "$WORK/.nojekyll"
 cd "$WORK"
 git config user.name "$(git -C "$OLDPWD" config user.name)"
